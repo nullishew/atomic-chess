@@ -1,6 +1,7 @@
-import { GameObjects, Textures, Tilemaps, Math, Scene } from "phaser";
+import { GameObjects, Tilemaps, Math } from "phaser";
 import { Game } from "../../scenes/Game";
 import { ASSETS } from "../../assets";
+import { Pos, ChessColor } from "../AtomicChess";
 
 // Base class to represent the GUI of each individual chess piece
 export abstract class ChessPieceSprite extends GameObjects.Sprite {
@@ -15,16 +16,6 @@ export abstract class ChessPieceSprite extends GameObjects.Sprite {
     super(game, x, y, ASSETS.CHESS_PIECES.key, frame[color]);
     this.pos = pos;
     this.setOrigin(0);
-    // this.setInteractive({ draggable: true });
-    // this.on('dragstart', () => {
-    //   console.log('started dragging');
-    // });
-    // this.on('drag', (_: any, mX: number, mY: number) => this.setPosition(mX, mY));
-    // this.on('dragend', () => {
-    //   console.log('ended dragging');
-    //   const { x, y } = game.chessboardMap.worldToTileXY(this.x, this.y) as Math.Vector2;
-    //   this.move([y, x]);
-    // });
   }
 
   // Returns the game scene the chess piece is in

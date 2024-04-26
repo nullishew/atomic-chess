@@ -1,5 +1,6 @@
 import { ChessPieceSprite } from "./ChessPieceSprite";
 import { Game } from "../../scenes/Game";
+import { Pos, ChessColor } from "../AtomicChess";
 
 // Class representing the GUI for a pawn
 export class PawnSprite extends ChessPieceSprite {

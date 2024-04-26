@@ -1,4 +1,5 @@
 import { PiecesEnum } from "../enums";
+import { ChessPositionArrayNotation, Pos, PieceNotation, ChessColor } from "./AtomicChess";
 
 // Class representing a chess position
 export class ChessPosition {

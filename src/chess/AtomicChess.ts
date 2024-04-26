@@ -1,34 +1,37 @@
-import { AtomicChessValidator } from "./validator/AtomicChessValidator";
-import { PiecesEnum } from "../enums";
 import { ChessSpritePosition } from "./ChessSpritePosition";
 import { ChessPosition } from "./ChessPosition";
+import { getEnemyColor, isCheckMate, isStaleMate } from "./validator/AtomicChessValidator";
+import { PiecesEnum } from "../enums";
 
 export type CastlingData = Tuple2<{ kingside: boolean, queenside: boolean }>;
 export type FENData = { position: ChessPosition, activeColor: ChessColor, canCastle: CastlingData, enPassants: Pos[], halfMoves: number, fullMoves: number };
+export type Pos = [number, number];
+export type ChessColor = 0 | 1;
+export type PieceNotation = 'K' | 'Q' | 'B' | 'N' | 'R' | 'P' | 'k' | 'q' | 'b' | 'n' | 'r' | 'p';
+export type PromotablePieceNotation = 'Q' | 'q' | 'B' | 'b' | 'N' | 'n' | 'R' | 'r';
+export type Tuple8<T> = [T, T, T, T, T, T, T, T];
+export type Tuple2<T> = [T, T];
+export type ChessPositionRowNotation = Tuple8<PieceNotation | null>;
+export type ChessPositionArrayNotation = Tuple8<ChessPositionRowNotation>;
 
+// checks if the value of two positions are equal
 export function equals(p1: Pos, p2: Pos) {
   const [r1, c1] = p1;
   const [r2, c2] = p2;
   return r1 == r2 && c1 == c2;
 }
 
-export function enemyColor(color: ChessColor): ChessColor {
-  return color == 0 ? 1 : 0;
-}
-
+// Class representing a game of Atomic Chess
 export class AtomicChess {
-  validator: AtomicChessValidator;
-  spritePosition: ChessSpritePosition;
+  spritePosition: ChessSpritePosition; // Store the GUI
   #data: FENData;
 
   constructor(data: FENData, spritePosition: ChessSpritePosition) {
     this.#data = data;
-    this.validator = new AtomicChessValidator(this.data);
     this.spritePosition = spritePosition;
   }
 
   get data() { return this.#data }
-
 
   isDraw() {
     // does not account for other methods of drawing
@@ -37,8 +40,8 @@ export class AtomicChess {
 
   // Checks if the given player has won by checkmating or exploding the enemy king
   isWin(color: ChessColor) {
-    const inactiveColor = enemyColor(color);
-    return this.validator.isCheckMate(inactiveColor) || !this.#data.position.indexOfKing(inactiveColor);
+    const inactiveColor = getEnemyColor(color);
+    return isCheckMate(this.data, inactiveColor) || !this.data.position.indexOfKing(inactiveColor);
   }
 
   // Currently not implemented
@@ -51,14 +54,14 @@ export class AtomicChess {
   }
 
   isStalemate() {
-    return this.validator.isStaleMate(this.#data.activeColor);
+    return isStaleMate(this.data, this.data.activeColor);
   }
 
   // Switches the turn by incrementing the half clock, incrementing full moves every two turns, setting the current color to the opposite color, and resetting the possible en passants
   switchTurn() {
     this.#data.halfMoves++;
     this.#data.fullMoves += this.#data.activeColor % 2;
-    this.#data.activeColor = enemyColor(this.#data.activeColor);
+    this.#data.activeColor = getEnemyColor(this.#data.activeColor);
     this.#data.enPassants = [];
   }
 
