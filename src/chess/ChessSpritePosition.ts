@@ -1,4 +1,4 @@
-import { GameObjects, Tilemaps } from "phaser";
+import { GameObjects } from "phaser";
 import { BishopSprite } from "./sprites/BishopSprite";
 import { ChessPieceSprite } from "./sprites/ChessPieceSprite";
 import { KingSprite } from "./sprites/KingSprite";
@@ -7,7 +7,9 @@ import { PawnSprite } from "./sprites/PawnSprite";
 import { QueenSprite } from "./sprites/QueenSprite";
 import { RookSprite } from "./sprites/RookSprite";
 import { Game } from "../scenes/Game";
+import { ChessPositionArrayNotation, Pos, PieceNotation, ChessColor } from "./AtomicChess";
 
+// Class to represent the GUI for Chess
 export class ChessSpritePosition {
   #state: (ChessPieceSprite | null)[][]; // 2D array to store chess piece sprites
   scene: Game; // Reference to the game scene

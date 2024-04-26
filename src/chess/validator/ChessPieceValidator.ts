@@ -1,18 +1,17 @@
-import { AtomicChessValidator } from "./AtomicChessValidator";
-import { ChessPosition } from "../ChessPosition";
 import { PiecesEnum } from "../../enums";
+import { ChessColor, FENData, Pos } from "../AtomicChess";
+import { ChessPosition } from "../ChessPosition";
+import { getEnemyColor, isAtomicCheck } from "./AtomicChessValidator";
 
-// base class to represent a validator to validate chess piece moves
+// base class to validate chess piece moves
 export abstract class ChessPieceValidator {
-  validator: AtomicChessValidator;
   color: ChessColor;
   moveDirs: Pos[];
   captureDirs: Pos[];
   maxMoveSteps: number;
   type: PiecesEnum;
 
-  constructor(validator: AtomicChessValidator, type: PiecesEnum, color: ChessColor, moveDirs: Pos[], captureDirs: Pos[], maxMoveSteps: number) {
-    this.validator = validator;
+  constructor(type: PiecesEnum, color: ChessColor, moveDirs: Pos[], captureDirs: Pos[], maxMoveSteps: number) {
     this.type = type;
     this.color = color;
     this.moveDirs = moveDirs;
@@ -20,12 +19,10 @@ export abstract class ChessPieceValidator {
     this.maxMoveSteps = maxMoveSteps;
   }
 
-  // returns the opposite color of the current validator
-  get enemyColor() { return [1, 0][this.color] }
-
-    // returns an array of all possible capture from a given position, including invalid moves that place the King in Atomic check or blow up the king of the same color
-  possibleCapturesFrom(from: Pos): Pos[] {
-    const { position } = this.validator.data;
+  // returns an array of all possible capture from a given position, including invalid moves that place the King in Atomic check or blow up the king of the same color
+  getPossibleCapturesFrom(data: FENData, from: Pos): Pos[] {
+    const enemyColor = getEnemyColor(this.color);
+    const { position } = data;
     if (position.colorAt(from) != this.color) return [];
     const moves: Pos[] = [];
     const [r, c] = from;
@@ -34,7 +31,7 @@ export abstract class ChessPieceValidator {
         const pos: Pos = [r + i * dr, c + i * dc];
         if (!position.has(pos)) break;
         if (position.emptyAt(pos)) continue;
-        if (position.colorAt(pos) != this.enemyColor) break;
+        if (position.colorAt(pos) != enemyColor) break;
         moves.push(pos);
         break;
       }
@@ -43,8 +40,8 @@ export abstract class ChessPieceValidator {
   }
 
   // returns an array of all possible standard moves from a given position, including invalid moves that place the King in Atomic check or blow up the king of the same color
-  possibleStandardMovesFrom(from: Pos): Pos[] {
-    const { position, activeColor } = this.validator.data;
+  getPossibleStandardMovesFrom(data: FENData, from: Pos): Pos[] {
+    const { position, activeColor } = data;
     if (position.colorAt(from) != activeColor) return [];
     const moves: Pos[] = [];
     const [r, c] = from;
@@ -59,32 +56,32 @@ export abstract class ChessPieceValidator {
   }
 
   // returns an array of all valid captures from a given position
-  validCapturesFrom(from: Pos): Pos[] {
-    const moves = this.possibleCapturesFrom(from);
-    const { position } = this.validator.data;
+  getValidCapturesFrom(data: FENData, from: Pos): Pos[] {
+    const moves = this.getPossibleCapturesFrom(data, from);
+    const { position } = data;
     return moves.filter(to => {
       const newPosition = new ChessPosition(position.state);
       newPosition.capture(from, to);
-      return newPosition.indexOfKing(this.color) && !this.validator.isAtomicCheck(this.color, newPosition);
+      return newPosition.indexOfKing(this.color) && !isAtomicCheck(newPosition, this.color);
     })
   }
 
   // returns an array of all valid standard moves from a given position
-  validStandardMovesFrom(from: Pos): Pos[] {
-    const moves = this.possibleStandardMovesFrom(from);
-    const { position } = this.validator.data;
+  getValidStandardMovesFrom(data: FENData, from: Pos): Pos[] {
+    const moves = this.getPossibleStandardMovesFrom(data, from);
+    const { position } = data;
     return moves.filter(to => {
       const newPosition = new ChessPosition(position.state);
       newPosition.move(from, to);
-      return !this.validator.isAtomicCheck(this.color, newPosition);
+      return !isAtomicCheck(newPosition, this.color);
     })
   }
 
   // returns an array of all valid moves from a given position
-  validMovesFrom(from: Pos): Pos[] {
+  getValidMovesFrom(data: FENData, from: Pos): Pos[] {
     return [
-      ...this.validCapturesFrom(from),
-      ...this.validStandardMovesFrom(from),
+      ...this.getValidCapturesFrom(data, from),
+      ...this.getValidStandardMovesFrom(data, from),
     ]
   }
 

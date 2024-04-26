@@ -2,6 +2,7 @@ import { Scene } from 'phaser';
 import { ASSETS } from '../assets';
 import { chessTileSize } from '../main';
 
+// Scene to preload assets before loading the game
 export class Preloader extends Scene {
   constructor() {
     super('Preloader');
