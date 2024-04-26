@@ -18,7 +18,7 @@ The local development server runs on `http://localhost:8080` by default. Please 
 
 Once the server is running you can edit any of the files in the `src` folder. Vite will automatically recompile your code and then reload the browser.
 
-## Template Project Structure
+## Project Structure
 
 - `index.html` - A basic HTML page to contain the game.
 - `src` - Contains the game source code.
