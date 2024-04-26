@@ -1,6 +1,7 @@
 # Atomic Chess
 
 Atomic Chess written using Phaser JS and TS for a school project.
+
 Sadly no Mac or Linux support yet.
 
 ## Getting Started
