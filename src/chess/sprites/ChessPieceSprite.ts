@@ -2,11 +2,13 @@ import { GameObjects, Textures, Tilemaps, Math, Scene } from "phaser";
 import { Game } from "../../scenes/Game";
 import { ASSETS } from "../../assets";
 
+// Base class to represent the GUI of each individual chess piece
 export abstract class ChessPieceSprite extends GameObjects.Sprite {
   pos: Pos;
   tilemap: Tilemaps.Tilemap;
   particleEmitter: GameObjects.Particles.ParticleEmitter;
 
+  // Sets the initial position of the chess piece and the image of the chess piece
   constructor(game: Game, frame: [number, number], color: ChessColor, pos: Pos) {
     const [r, c] = pos;
     const { x, y } = game.chessboardMap.tileToWorldXY(c, r) as Math.Vector2;
@@ -25,8 +27,10 @@ export abstract class ChessPieceSprite extends GameObjects.Sprite {
     // });
   }
 
+  // Returns the game scene the chess piece is in
   get game() { return this.scene as Game }
 
+  // Moves the chess piece
   move(pos: Pos) {
     this.pos = pos;
     const [r, c] = pos;
@@ -43,6 +47,7 @@ export abstract class ChessPieceSprite extends GameObjects.Sprite {
     });
   }
 
+  // Explodes the chess piece
   explode() {
     const [r, c] = this.pos;
     const { x, y } = this.game.chessboardMap.tileToWorldXY(c, r) as Math.Vector2;

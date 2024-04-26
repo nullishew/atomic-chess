@@ -49,18 +49,24 @@ export class Game extends Scene {
   }
 
   create() {
+    // Fade in transition
     this.cameras.main.fadeIn(3000, 0, 0, 0);
+
+    // Reset game state
     this.isGameOver = false;
 
+    // Center gameview
     const cam = this.cameras.main;
     const { centerX, centerY } = cam;
     cam.setScroll(-centerX, -centerY);
 
-
+    // Create explosion sound
     this.explosionSound = this.sound.add(ASSETS.EXPLOSION.key);
 
+    // Create chessboard
     this.chessboardMap = createChessboard(this, chessTileSize);
 
+    // Initial chessboard setup
     const chessboardSetup: ChessPositionArrayNotation = [
       ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
       ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
@@ -72,6 +78,10 @@ export class Game extends Scene {
       ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'],
     ];
 
+    // Create chess piece sprites
+    const pieceSprites = new ChessSpritePosition(this, chessboardSetup);
+
+    // Initialize atomic chess game
     this.chess = new AtomicChess(
       {
         position: new ChessPosition(chessboardSetup),
@@ -81,22 +91,27 @@ export class Game extends Scene {
         halfMoves: 0,
         fullMoves: 0,
       },
-      new ChessSpritePosition(this, chessboardSetup)
+      pieceSprites
     );
 
+    // Add indicator to indicate tile hovered over by mouse
     this.pointerTileMarker = createTileMarker(this, chessTileSize, chessTileSize * .1, 0xffffff, 1);
+
+    // Add indicator to indicate selected tile
     this.selectedTileMarker = createTileMarker(this, chessTileSize, chessTileSize * .1, 0xffffff, 1);
 
+    // Create markers to indicate possible moves
     this.moveMarkers = chessboardSetup.map((row, r) => row.map(
       (_, c) => createMoveMarker(this, this.chessboardMap, r, c, .1 * chessTileSize)
     ));
 
-    // Create menus for promoting pawns
+    // Create menus for pawn promotions
     this.promotionMenus = [
       createPromotionMenu(this, 0).setVisible(false),
       createPromotionMenu(this, 1).setVisible(false),
     ];
 
+    // Create menus for when the game ends
     this.gameOverMenus = {
       stalemate: createGameOverMenu(this, 'Stalemate', null).setVisible(false),
       draw: createGameOverMenu(this, 'Draw', null).setVisible(false),
@@ -106,9 +121,7 @@ export class Game extends Scene {
       ],
     };
 
-
-
-
+    // Add explosion particles
     this.explosionParticles = this.add.particles(0, 0, ASSETS.PARTICLE.key, {
       speed: { min: 300, max: 600 },
       scale: { start: .6, end: 0, random: true },
@@ -117,14 +130,25 @@ export class Game extends Scene {
       emitting: false,
     });
 
+
     this.setUpInput();
-
-
-
-
   }
 
   setUpInput() {
+    // Add mouse input to indicate which tile the mouse is currently hovering over
+    this.input.on('pointermove', () => {
+      if (!this.pointerTileMarker) return;
+      const tile = this.pointerTile;
+      if (!tile) {
+        this.pointerTileMarker.visible = false;
+        return;
+      }
+      const { x, y } = this.chessboardMap.tileToWorldXY(tile.x, tile.y) as Phaser.Math.Vector2;
+      this.pointerTileMarker.visible = true;
+      this.pointerTileMarker.setPosition(x, y);
+    });
+
+    // Add mouse input to select tiles and make moves
     this.input.on('pointerdown', () => {
       if (this.isGameOver) return;
       const deselectTile = () => {
@@ -161,23 +185,7 @@ export class Game extends Scene {
     });
   }
 
-
-  update() {
-    this.pointToTileAtPointer();
-  }
-
-  pointToTileAtPointer() {
-    if (!this.pointerTileMarker) return;
-    const tile = this.pointerTile;
-    if (!tile) {
-      this.pointerTileMarker.visible = false;
-      return;
-    }
-    const { x, y } = this.chessboardMap.tileToWorldXY(tile.x, tile.y) as Phaser.Math.Vector2;
-    this.pointerTileMarker.visible = true;
-    this.pointerTileMarker.setPosition(x, y);
-  }
-
+  // Show indicators to indicate all possible moves of a chess piece at a given location
   showValidMoves(pos: Pos) {
     this.hideMoveMarkers();
     this.chess.validator.validMovesFrom(pos)
@@ -188,16 +196,19 @@ export class Game extends Scene {
       });
   }
 
+  // Hide all move indicators
   hideMoveMarkers() {
     this.moveMarkers.flat().forEach(marker => marker.visible = false);
   }
 
+  // Attempt to move a piece from one location to another After validating the move
   tryMove(from: Pos, to: Pos): boolean {
     const { validator, data } = this.chess;
-    const { activeColor, position } = data;
-    console.log('in check? ' + validator.isAtomicCheck(activeColor, position));
-    console.log(`checkmate? ${validator.isCheckMate(activeColor)}`);
-    console.log(`pawn promotion? ${validator.isPawnPromotion(from, to)}`);
+    const { activeColor } = data;
+    // const { activeColor, position } = data;
+    // console.log('in check? ' + validator.isAtomicCheck(activeColor, position));
+    // console.log(`checkmate? ${validator.isCheckMate(activeColor)}`);
+    // console.log(`pawn promotion? ${validator.isPawnPromotion(from, to)}`);
 
     const isPromotion = validator.isPawnPromotion(from, to);
     if (validator.isValidStandardMove(from, to)) {
@@ -232,6 +243,7 @@ export class Game extends Scene {
     return false;
   }
 
+  // Attempts to end the game and show a game over menu by checking for a draw, stalemate, or win
   tryGameOver(color: ChessColor): boolean {
     const { win, draw, stalemate } = this.gameOverMenus;
     const showMenu = (menu: GameObjects.Container) => {
@@ -265,17 +277,8 @@ export class Game extends Scene {
 
 }
 
+// Factory method to create a chessboard tilemap
 function createChessboard(scene: Scene, tileSize: number) {
-  // const data = [
-  //   [0, 0, 0, 0, 0, 0, 0, 0],
-  //   [0, 0, 0, 0, 0, 0, 0, 0],
-  //   [0, 0, 0, 0, 0, 0, 0, 0],
-  //   [0, 0, 0, 0, 0, 0, 0, 0],
-  //   [0, 0, 0, 0, 0, 0, 0, 0],
-  //   [0, 0, 0, 0, 0, 0, 0, 0],
-  //   [0, 0, 0, 0, 0, 0, 0, 0],
-  //   [0, 0, 0, 0, 0, 0, 0, 0],
-  // ];
   const data = [
     [0, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 0, 1, 0, 1, 0],
@@ -288,13 +291,13 @@ function createChessboard(scene: Scene, tileSize: number) {
   ];
   const map = scene.make.tilemap({ data: data, tileWidth: tileSize, tileHeight: tileSize });
   const tileset = map.addTilesetImage(ASSETS.CHESSBOARD_TILES.key) as Tilemaps.Tileset;
-  // const tileset = map.addTilesetImage(ASSETS.BLANK_TILE.key) as Tilemaps.Tileset;
   const layer = map.createLayer(0, tileset, 0, 0) as Tilemaps.TilemapLayer;
   const { x, y } = layer.getBottomRight() as Phaser.Math.Vector2;
   layer.setPosition(-.5 * x, -.5 * y);
   return map;
 }
 
+// Factory method to create a tile marker
 function createTileMarker(scene: Scene, tileSize: number, lineWidth: number, color: number, alpha: number) {
   const marker = scene.add.graphics();
   marker.lineStyle(lineWidth, color, alpha);
@@ -303,6 +306,7 @@ function createTileMarker(scene: Scene, tileSize: number, lineWidth: number, col
   return marker;
 }
 
+// Factory method to create a movement marker
 function createMoveMarker(scene: Scene, tilemap: Tilemaps.Tilemap, r: number, c: number, size: number) {
   const { x, y } = tilemap.tileToWorldXY(c + .5, r + .5) as Phaser.Math.Vector2;
   const graphics = scene.add.graphics()
@@ -313,6 +317,7 @@ function createMoveMarker(scene: Scene, tilemap: Tilemaps.Tilemap, r: number, c:
   return graphics;
 }
 
+// Factory method to create a pawn promotion menu
 function createPromotionMenu(game: Game, color: ChessColor) {
   const data: PromotablePieceNotation[][] = [
     ['Q', 'B', 'N', 'R'],
@@ -332,6 +337,7 @@ function createPromotionMenu(game: Game, color: ChessColor) {
   ]);
 }
 
+// Factory method to create a game over menu
 function createGameOverMenu(game: Scene, text: string, image: GameObjects.Image | null) {
   const button = game.add.image(0, 32, ASSETS.RETRY.key)
     .setScale(1)

@@ -35,13 +35,15 @@ export class AtomicChess {
     return this.isThreeFoldRepetition() || this.isFiftyMoveDraw();
   }
 
+  // Checks if the given player has won by checkmating or exploding the enemy king
   isWin(color: ChessColor) {
     const inactiveColor = enemyColor(color);
     return this.validator.isCheckMate(inactiveColor) || !this.#data.position.indexOfKing(inactiveColor);
   }
 
+  // Currently not implemented
   isThreeFoldRepetition() {
-    return false; // too difficult perhaps? no need to implement
+    return false;
   }
 
   isFiftyMoveDraw() {
@@ -52,6 +54,7 @@ export class AtomicChess {
     return this.validator.isStaleMate(this.#data.activeColor);
   }
 
+  // Switches the turn by incrementing the half clock, incrementing full moves every two turns, setting the current color to the opposite color, and resetting the possible en passants
   switchTurn() {
     this.#data.halfMoves++;
     this.#data.fullMoves += this.#data.activeColor % 2;

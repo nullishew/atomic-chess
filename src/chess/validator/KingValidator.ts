@@ -4,6 +4,7 @@ import { ChessPosition } from "../ChessPosition";
 import { AtomicChessValidator } from "./AtomicChessValidator";
 import { ChessPieceValidator } from "./ChessPieceValidator";
 
+// class to represent a validator to validate king moves
 export class KingValidator extends ChessPieceValidator {
   constructor(validator: AtomicChessValidator, color: ChessColor) {
     const dirs: Pos[] = [
@@ -16,16 +17,17 @@ export class KingValidator extends ChessPieceValidator {
       [0, -1],
       [1, -1],
     ];
+    // in atomic chess the king can move one tile in any direction but cannot capture
     super(validator, PiecesEnum.KING, color, dirs, [], 1);
   }
 
-  get backRank() { return [7, 0][this.color] }
-  get canCastle() { return this.validator.data.canCastle[this.color] }
-  get startingPos() { return [this.backRank, 4] as Pos }
+  get backRank() { return [7, 0][this.color] } // returns the location of the back rank
+  get startingPos() { return [this.backRank, 4] as Pos } // returns the starting position of the king
 
+  // returns an array of all valid kingside castles from a given position
   validCastleKingsideFrom(from: Pos): Pos[] {
     const { position } = this.validator.data;
-    if (!this.canCastle.kingside || !equals(from, this.startingPos) || this.validator.isAtomicCheck(this.color, position)) return [];
+    if (!this.validator.data.canCastle[this.color].kingside || !equals(from, this.startingPos) || this.validator.isAtomicCheck(this.color, position)) return [];
     const positions: Pos[] = [
       [this.backRank, 5],
       [this.backRank, 6],
@@ -37,9 +39,10 @@ export class KingValidator extends ChessPieceValidator {
     return [[this.backRank, 6]];
   }
 
+  // returns an array of all valid queenside castles from a given position
   validCastleQueensideFrom(from: Pos): Pos[] {
     const { position } = this.validator.data;
-    if (!this.canCastle.queenside || !equals(from, this.startingPos) || this.validator.isAtomicCheck(this.color, position)) return [];
+    if (!this.validator.data.canCastle[this.color].queenside || !equals(from, this.startingPos) || this.validator.isAtomicCheck(this.color, position)) return [];
     const positions: Pos[] = [
       [this.backRank, 1],
       [this.backRank, 2],
@@ -52,6 +55,7 @@ export class KingValidator extends ChessPieceValidator {
     return [[this.backRank, 2]];
   }
 
+  // returns an array of all valid moves from a given position
   override validMovesFrom(from: Pos): Pos[] {
     return [
       ...this.validCastleKingsideFrom(from),

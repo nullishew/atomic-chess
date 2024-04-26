@@ -2,6 +2,7 @@ import { AtomicChessValidator } from "./AtomicChessValidator";
 import { ChessPosition } from "../ChessPosition";
 import { PiecesEnum } from "../../enums";
 
+// base class to represent a validator to validate chess piece moves
 export abstract class ChessPieceValidator {
   validator: AtomicChessValidator;
   color: ChessColor;
@@ -19,8 +20,10 @@ export abstract class ChessPieceValidator {
     this.maxMoveSteps = maxMoveSteps;
   }
 
+  // returns the opposite color of the current validator
   get enemyColor() { return [1, 0][this.color] }
 
+    // returns an array of all possible capture from a given position, including invalid moves that place the King in Atomic check or blow up the king of the same color
   possibleCapturesFrom(from: Pos): Pos[] {
     const { position } = this.validator.data;
     if (position.colorAt(from) != this.color) return [];
@@ -39,6 +42,7 @@ export abstract class ChessPieceValidator {
     return moves;
   }
 
+  // returns an array of all possible standard moves from a given position, including invalid moves that place the King in Atomic check or blow up the king of the same color
   possibleStandardMovesFrom(from: Pos): Pos[] {
     const { position, activeColor } = this.validator.data;
     if (position.colorAt(from) != activeColor) return [];
@@ -54,6 +58,7 @@ export abstract class ChessPieceValidator {
     return moves;
   }
 
+  // returns an array of all valid captures from a given position
   validCapturesFrom(from: Pos): Pos[] {
     const moves = this.possibleCapturesFrom(from);
     const { position } = this.validator.data;
@@ -64,6 +69,7 @@ export abstract class ChessPieceValidator {
     })
   }
 
+  // returns an array of all valid standard moves from a given position
   validStandardMovesFrom(from: Pos): Pos[] {
     const moves = this.possibleStandardMovesFrom(from);
     const { position } = this.validator.data;
@@ -74,6 +80,7 @@ export abstract class ChessPieceValidator {
     })
   }
 
+  // returns an array of all valid moves from a given position
   validMovesFrom(from: Pos): Pos[] {
     return [
       ...this.validCapturesFrom(from),

@@ -8,6 +8,7 @@ import { PawnValidator } from "./PawnValidator";
 import { QueenValidator } from "./QueenValidator";
 import { RookValidator } from "./RookValidator";
 
+// Validator to validate chess moves
 export class AtomicChessValidator {
   pieceValidators: Record<PieceNotation, ChessPieceValidator>;
   data: FENData;
@@ -31,6 +32,7 @@ export class AtomicChessValidator {
     }
   }
 
+  // return a list of all valid moves from a given location on the chessboard
   validMovesFrom(from: Pos): Pos[] {
     const { position, activeColor } = this.data;
     const piece = position.at(from);
@@ -39,6 +41,7 @@ export class AtomicChessValidator {
     return this.pieceValidators[piece].validMovesFrom(from);
   }
 
+  // validate a given pawn promotion
   isPawnPromotion(from: Pos, to: Pos): boolean {
     const { position, activeColor } = this.data;
     const piece = position.at(from);
@@ -51,6 +54,7 @@ export class AtomicChessValidator {
     return [0, 7][color] == r;
   }
 
+  // validate a given standard move (A move that is not castling, capturing, or moving the pawn two tiles)
   isValidStandardMove(from: Pos, to: Pos): boolean {
     const { position, activeColor } = this.data;
     const piece = position.at(from);
@@ -59,6 +63,7 @@ export class AtomicChessValidator {
     return validator.validStandardMovesFrom(from).some(p => equals(p, to));
   }
 
+  // validate a given capture
   isValidCapture(from: Pos, to: Pos): boolean {
     const { position, activeColor } = this.data;
     const piece = position.at(from);
@@ -67,6 +72,7 @@ export class AtomicChessValidator {
     return validator.validCapturesFrom(from).some(p => equals(p, to));
   }
 
+  // validate a given pawn moving two tiles
   isValidDoubleMove(from: Pos, to: Pos): boolean {
     const { position, activeColor } = this.data;
     const piece = position.at(from);
@@ -75,6 +81,7 @@ export class AtomicChessValidator {
     return validator instanceof PawnValidator && validator.validDoubleMovesFrom(from).some(p => equals(p, to));
   }
 
+  // validate a given en passant
   isValidEnPassant(from: Pos, to: Pos): boolean {
     const { position, activeColor } = this.data;
     const piece = position.at(from);
@@ -83,6 +90,7 @@ export class AtomicChessValidator {
     return validator instanceof PawnValidator && validator.validEnPassantsFrom(from).some(p => equals(p, to));
   }
 
+  // validate a given kingside castle
   isValidCastleKingside(from: Pos, to: Pos): boolean {
     const { position, activeColor } = this.data;
     const piece = position.at(from);
@@ -91,6 +99,7 @@ export class AtomicChessValidator {
     return validator instanceof KingValidator && validator.validCastleKingsideFrom(from).some(p => equals(p, to));
   }
 
+  // validate a given queenside castle
   isValidCastleQueenside(from: Pos, to: Pos): boolean {
     const { position, activeColor } = this.data;
     const piece = position.at(from);
@@ -99,6 +108,7 @@ export class AtomicChessValidator {
     return validator instanceof KingValidator && validator.validCastleQueensideFrom(from).some(p => equals(p, to));
   }
 
+  // check if a given color is in atomic check in a given position
   isAtomicCheck(color: ChessColor, position: ChessPosition) {
     const enemyColor = [1, 0][color] as ChessColor;
     const kingPos = position.indexOfKing(color);
@@ -121,6 +131,7 @@ export class AtomicChessValidator {
     return false;
   }
 
+  // return a list of all valid moves for a player of the given color
   validMovesForPlayer(color: ChessColor) {
     const { position } = this.data;
     return position.state.map((row, r) => row.map(
@@ -131,10 +142,12 @@ export class AtomicChessValidator {
       .flat();
   }
 
+  // check if the given color is in atomic checkmate
   isCheckMate(color: ChessColor) {
     return this.isAtomicCheck(color, this.data.position) && !this.validMovesForPlayer(color).length;
   }
 
+  // check if the given color is in atomic stalemate
   isStaleMate(color: ChessColor) {
     return !this.isAtomicCheck(color, this.data.position) && !this.validMovesForPlayer(color).length;
   }
