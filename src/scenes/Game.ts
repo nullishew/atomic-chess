@@ -61,41 +61,6 @@ export class Game extends Scene {
 
     this.chessboardMap = createChessboard(this, chessTileSize);
 
-    // const { x, y } = this.chessboardMap.tileToWorldXY(-.5, -.5) as Phaser.Math.Vector2;
-    // const chessTileGroup = this.add.group({
-    //   key: ASSETS.PARTICLE.key,
-    //   quantity: 8 * 8,
-    //   gridAlign: {
-    //     width: 8,
-    //     height: 8,
-    //     cellWidth: chessTileSize,
-    //     cellHeight: chessTileSize,
-    //     x: x,
-    //     y: y,
-    //   },
-    //   setOrigin: { x: 0.5, y: 0.5 },
-    //   setScale: { x: 0, y: 0 }
-    // });
-    // chessTileGroup.getChildren().forEach((tile, i) => {
-    //   const color = [0x111111, 0xeeeeee][(Math.floor(i / 8) + i % 8) % 2];
-    //   (tile as GameObjects.Image).setTintFill(color);
-    // })
-    // this.tweens.add({
-    //   targets: chessTileGroup.getChildren(),
-    //   scale: .5,
-    //   ease: 'linear',
-    //   duration: 300,
-    //   delay: this.tweens.stagger(30, { grid: [8, 8], from: 'first' }),
-    //   // completeDelay: 1000,
-    //   onComplete: () => {
-    //     chessTileGroup.getChildren().forEach(child => {
-    //       (child as GameObjects.Image).setScale(.5);
-    //     });
-    //     finishSetup();
-    //   }
-    // });
-
-
     const chessboardSetup: ChessPositionArrayNotation = [
       ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
       ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
