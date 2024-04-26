@@ -11,8 +11,6 @@ import { Game } from "../scenes/Game";
 export class ChessSpritePosition {
   #state: (ChessPieceSprite | null)[][]; // 2D array to store chess piece sprites
   scene: Game; // Reference to the game scene
-  tilemap: Tilemaps.Tilemap; // Reference to the tilemap
-  emitter: GameObjects.Particles.ParticleEmitter; // Reference to the particle emitter
   container: GameObjects.Container; // Container to hold chess piece sprites
 
   constructor(game: Game, state: ChessPositionArrayNotation) {
