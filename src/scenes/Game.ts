@@ -1,9 +1,10 @@
 import { GameObjects, Scene, Sound, Tilemaps } from 'phaser';
 import { ASSETS } from '../assets';
-import { AtomicChess, CastlingData } from '../chess/AtomicChess';
+import { AtomicChess, CastlingData, ChessColor, ChessPositionArrayNotation, Pos, PromotablePieceNotation, Tuple2 } from '../chess/AtomicChess';
 import { ChessSpritePosition } from '../chess/ChessSpritePosition';
 import { ChessPosition } from '../chess/ChessPosition';
 import { chessTileSize } from '../main';
+import { isPawnPromotion, isValidCapture, isValidKingsideCastle, isValidQueensideCastle, isValidDoubleMove, isValidEnPassant, isValidStandardMove, getValidMovesFrom } from '../chess/validator/AtomicChessValidator';
 
 export class Game extends Scene {
   camera: Phaser.Cameras.Scene2D.Camera;
@@ -188,7 +189,7 @@ export class Game extends Scene {
   // Show indicators to indicate all possible moves of a chess piece at a given location
   showValidMoves(pos: Pos) {
     this.hideMoveMarkers();
-    this.chess.validator.validMovesFrom(pos)
+    getValidMovesFrom(this.chess.data, pos)
       .forEach(([r, c]) => {
         const marker = this.moveMarkers[r][c];
         this.children.bringToTop(marker);
@@ -203,15 +204,15 @@ export class Game extends Scene {
 
   // Attempt to move a piece from one location to another After validating the move
   tryMove(from: Pos, to: Pos): boolean {
-    const { validator, data } = this.chess;
+    const { data } = this.chess;
     const { activeColor } = data;
     // const { activeColor, position } = data;
     // console.log('in check? ' + validator.isAtomicCheck(activeColor, position));
     // console.log(`checkmate? ${validator.isCheckMate(activeColor)}`);
     // console.log(`pawn promotion? ${validator.isPawnPromotion(from, to)}`);
 
-    const isPromotion = validator.isPawnPromotion(from, to);
-    if (validator.isValidStandardMove(from, to)) {
+    const isPromotion = isPawnPromotion(data, from, to);
+    if (isValidStandardMove(data, from, to)) {
       const color = activeColor;
       this.chess.moveStandard(from, to);
       if (isPromotion) {
@@ -220,23 +221,23 @@ export class Game extends Scene {
       }
       return true;
     }
-    if (validator.isValidCapture(from, to)) {
+    if (isValidCapture(data, from, to)) {
       this.chess.capture(from, to);
       return true;
     }
-    if (validator.isValidDoubleMove(from, to)) {
+    if (isValidDoubleMove(data, from, to)) {
       this.chess.moveDouble(from, to);
       return true;
     }
-    if (validator.isValidEnPassant(from, to)) {
+    if (isValidEnPassant(data, from, to)) {
       this.chess.enPassant(from, to);
       return true;
     }
-    if (validator.isValidCastleKingside(from, to)) {
+    if (isValidKingsideCastle(data, from, to)) {
       this.chess.castleKingside(activeColor);
       return true;
     }
-    if (validator.isValidCastleQueenside(from, to)) {
+    if (isValidQueensideCastle(data, from, to)) {
       this.chess.castleQueenside(activeColor);
       return true;
     }
@@ -278,7 +279,7 @@ export class Game extends Scene {
 }
 
 // Factory method to create a chessboard tilemap
-function createChessboard(scene: Scene, tileSize: number) {
+function createChessboard(scene: Scene, tileSize: number): Tilemaps.Tilemap {
   const data = [
     [0, 1, 0, 1, 0, 1, 0, 1],
     [1, 0, 1, 0, 1, 0, 1, 0],
@@ -298,7 +299,7 @@ function createChessboard(scene: Scene, tileSize: number) {
 }
 
 // Factory method to create a tile marker
-function createTileMarker(scene: Scene, tileSize: number, lineWidth: number, color: number, alpha: number) {
+function createTileMarker(scene: Scene, tileSize: number, lineWidth: number, color: number, alpha: number): GameObjects.Graphics {
   const marker = scene.add.graphics();
   marker.lineStyle(lineWidth, color, alpha);
   marker.strokeRect(0, 0, tileSize, tileSize);
@@ -307,7 +308,7 @@ function createTileMarker(scene: Scene, tileSize: number, lineWidth: number, col
 }
 
 // Factory method to create a movement marker
-function createMoveMarker(scene: Scene, tilemap: Tilemaps.Tilemap, r: number, c: number, size: number) {
+function createMoveMarker(scene: Scene, tilemap: Tilemaps.Tilemap, r: number, c: number, size: number): GameObjects.Graphics {
   const { x, y } = tilemap.tileToWorldXY(c + .5, r + .5) as Phaser.Math.Vector2;
   const graphics = scene.add.graphics()
     .fillStyle(0x808080, .5)
@@ -318,7 +319,7 @@ function createMoveMarker(scene: Scene, tilemap: Tilemaps.Tilemap, r: number, c:
 }
 
 // Factory method to create a pawn promotion menu
-function createPromotionMenu(game: Game, color: ChessColor) {
+function createPromotionMenu(game: Game, color: ChessColor): GameObjects.Container {
   const data: PromotablePieceNotation[][] = [
     ['Q', 'B', 'N', 'R'],
     ['q', 'b', 'n', 'r'],
@@ -338,7 +339,7 @@ function createPromotionMenu(game: Game, color: ChessColor) {
 }
 
 // Factory method to create a game over menu
-function createGameOverMenu(game: Scene, text: string, image: GameObjects.Image | null) {
+function createGameOverMenu(game: Scene, text: string, image: GameObjects.Image | null): GameObjects.Container {
   const button = game.add.image(0, 32, ASSETS.RETRY.key)
     .setScale(1)
     .setOrigin(.5)
