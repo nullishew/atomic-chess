@@ -7,7 +7,8 @@ import { PawnSprite } from "./sprites/PawnSprite";
 import { QueenSprite } from "./sprites/QueenSprite";
 import { RookSprite } from "./sprites/RookSprite";
 import { Game } from "../scenes/Game";
-import { ChessPositionArrayNotation, Pos, PieceNotation, ChessColor } from "./AtomicChess";
+import { ChessPositionArrayNotation, Pos, ChessColor } from "./AtomicChess";
+import { Piece } from "./validator/AtomicChessValidator";
 
 // Class to represent the GUI for Chess
 export class ChessSpritePosition {
@@ -44,7 +45,7 @@ export class ChessSpritePosition {
   }
 
   // Method to promote a pawn to another piece
-  promote(pos: Pos, piece: PieceNotation) {
+  promote(pos: Pos, piece: Piece) {
     this.at(pos)?.destroy(); // Destroy existing pawn sprite
     const sprite = createChessPieceSprite(this.scene, piece, pos) as ChessPieceSprite; // Create new sprite for promoted piece
     this.container.add(sprite); // Add sprite to container
@@ -109,10 +110,10 @@ export class ChessSpritePosition {
 }
 
 // Factory method to create a chess piece sprite
-function createChessPieceSprite(scene: Game, type: PieceNotation | null, pos: Pos) {
+function createChessPieceSprite(scene: Game, type: Piece | null, pos: Pos) {
   if (!type) return null;
   // Map piece notations to corresponding sprite constructors
-  const constructors: Record<PieceNotation, { new(scene: Game, pos: Pos, color: ChessColor): ChessPieceSprite }> = {
+  const constructors: Record<Piece, { new(scene: Game, pos: Pos, color: ChessColor): ChessPieceSprite }> = {
     'K': KingSprite,
     'Q': QueenSprite,
     'B': BishopSprite,

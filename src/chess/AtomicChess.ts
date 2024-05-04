@@ -1,17 +1,17 @@
 import { ChessSpritePosition } from "./ChessSpritePosition";
 import { ChessPosition } from "./ChessPosition";
 import { getEnemyColor, isCheckMate, isStaleMate } from "./validator/AtomicChessValidator";
-import { PiecesEnum } from "../enums";
+import { PieceType } from "./validator/AtomicChessValidator";
+import { Piece } from "./validator/AtomicChessValidator";
 
 export type CastlingData = Tuple2<{ kingside: boolean, queenside: boolean }>;
 export type FENData = { position: ChessPosition, activeColor: ChessColor, canCastle: CastlingData, enPassants: Pos[], halfMoves: number, fullMoves: number };
 export type Pos = [number, number];
 export type ChessColor = 0 | 1;
-export type PieceNotation = 'K' | 'Q' | 'B' | 'N' | 'R' | 'P' | 'k' | 'q' | 'b' | 'n' | 'r' | 'p';
 export type PromotablePieceNotation = 'Q' | 'q' | 'B' | 'b' | 'N' | 'n' | 'R' | 'r';
 export type Tuple8<T> = [T, T, T, T, T, T, T, T];
 export type Tuple2<T> = [T, T];
-export type ChessPositionRowNotation = Tuple8<PieceNotation | null>;
+export type ChessPositionRowNotation = Tuple8<Piece | null>;
 export type ChessPositionArrayNotation = Tuple8<ChessPositionRowNotation>;
 
 // checks if the value of two positions are equal
@@ -143,13 +143,13 @@ export class AtomicChess {
     if (!piece || !position.emptyAt(to)) return;
     let light, dark;
     switch (position.typeAt(from)) {
-      case PiecesEnum.PAWN: // reset half clock when a pawn moves
+      case PieceType.PAWN: // reset half clock when a pawn moves
         this.#data.halfMoves = 0;
         break;
-      case PiecesEnum.KING: // prevent castling with a king that has moved
+      case PieceType.KING: // prevent castling with a king that has moved
         this.#data.canCastle[position.colorAt(from) as ChessColor] = { kingside: false, queenside: false };
         break;
-      case PiecesEnum.ROOK: // prevent castling with rooks that have moved
+      case PieceType.ROOK: // prevent castling with rooks that have moved
         ([light, dark] = this.#data.canCastle);
         if (equals(from, [0, 0]) && dark.queenside) {
           dark.queenside = false;

@@ -1,5 +1,6 @@
-import { PiecesEnum } from "../enums";
-import { ChessPositionArrayNotation, Pos, PieceNotation, ChessColor } from "./AtomicChess";
+import { PieceType } from "./validator/AtomicChessValidator";
+import { ChessPositionArrayNotation, Pos, ChessColor } from "./AtomicChess";
+import { Piece } from "./validator/AtomicChessValidator";
 
 // Class representing a chess position
 export class ChessPosition {
@@ -13,7 +14,7 @@ export class ChessPosition {
   get state() { return this.#state.map(row => row.slice()) as ChessPositionArrayNotation }
 
   // Method to get the piece at a given position
-  at([r, c]: Pos): PieceNotation | null {
+  at([r, c]: Pos): Piece | null {
     return this.#state?.[r]?.[c]; // Return the piece at the specified position
   }
 
@@ -57,11 +58,11 @@ export class ChessPosition {
 
   // Method to get the type of piece at a given position
   typeAt([r, c]: Pos) {
-    return this.#state?.[r]?.[c]?.toUpperCase() as PiecesEnum; // Return the type of piece
+    return this.#state?.[r]?.[c]?.toUpperCase() as PieceType; // Return the type of piece
   }
 
   // Method to set a piece at a given position
-  setAt([r, c]: Pos, piece: PieceNotation | null) {
+  setAt([r, c]: Pos, piece: Piece | null) {
     this.#state[r][c] = piece; // Set the piece at the specified position
   }
 
@@ -111,7 +112,7 @@ export class ChessPosition {
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -1; dc <= 1; dc++) {
         const pos: Pos = [r + dr, c + dc];
-        if (!this.has(pos) || this.emptyAt(pos) || this.typeAt(pos) == PiecesEnum.PAWN) continue;
+        if (!this.has(pos) || this.emptyAt(pos) || this.typeAt(pos) == PieceType.PAWN) continue;
         this.explode(pos); // Remove the surrounding piece
       }
     }
