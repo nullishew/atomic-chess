@@ -338,9 +338,11 @@ function getValidKingsideCastlesFrom(data: FEN, from: chessboard.Square): chessb
   const { board, activeColor, canCastle } = data;
   const piece = board[from];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.KING || PIECE_TO_COLOR[piece] != activeColor) return [];
-  const { king, between } = chessboard.castlingMoves[activeColor].kingside;
+  const { king, between, rook } = chessboard.castlingMoves[activeColor].kingside;
   if (!canCastle[activeColor].kingside || from != king.from || isAtomicCheck(board, activeColor)) return [];
-  if (between.some(square => board[square])) return [];
+  const piece2 = board[rook.from];
+  if (!piece2 || PIECE_TO_TYPE[piece2] != PieceType.ROOK || PIECE_TO_COLOR[piece2] != activeColor) return[];
+ if (between.some(square => board[square])) return [];
   return getSafeMoves(board, activeColor, from, [king.to], MoveType.KINGSIDE_CASTLE);
 }
 
@@ -348,8 +350,10 @@ function getValidQueensideCastlesFrom(data: FEN, from: chessboard.Square): chess
   const { board, activeColor, canCastle } = data;
   const piece = board[from];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.KING || PIECE_TO_COLOR[piece] != activeColor) return [];
-  const { king, between } = chessboard.castlingMoves[activeColor].queenside;
+  const { king, between, rook } = chessboard.castlingMoves[activeColor].queenside;
   if (!canCastle[activeColor].queenside || from != king.from || isAtomicCheck(board, activeColor)) return [];
+  const piece2 = board[rook.from];
+  if (!piece2 || PIECE_TO_TYPE[piece2] != PieceType.ROOK || PIECE_TO_COLOR[piece2] != activeColor) return[];
   if (between.some(square => board[square])) return [];
   return getSafeMoves(board, activeColor, from, [king.to], MoveType.KINGSIDE_CASTLE);
 }
