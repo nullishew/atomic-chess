@@ -3,13 +3,13 @@ import { FEN, PIECE_TO_TYPE, PieceType, PIECE_TO_COLOR, Color, Piece, PIECE_CAPT
 import * as chessboard from "./atomicChessboard";
 import * as atomicChessData from "../atomicChessData";
 
-export function getValidMovesFrom(gameState: FEN, from: Square): Square[] {
+export function getAllValidMovesFrom(gameState: FEN, from: Square): Square[] {
   return [
-    ...getValidCapturesFrom(gameState, from),
-    ...getValidDoubleMovesFrom(gameState, from),
-    ...getValidEnPassantsFrom(gameState, from),
     ...getValidCastlesFrom(gameState, CastleType.KINGSIDE, from),
     ...getValidCastlesFrom(gameState, CastleType.QUEENSIDE, from),
+    ...getValidDoubleMovesFrom(gameState, from),
+    ...getValidEnPassantsFrom(gameState, from),
+    ...getValidStandardCapturesFrom(gameState, from),
     ...getValidStandardMovesFrom(gameState, from),
   ];
 }
@@ -26,8 +26,8 @@ export function isValidStandardMove(gameState: FEN, { from, to }: Move): boolean
   return getValidStandardMovesFrom(gameState, from).includes(to);
 }
 
-export function isValidCapture(gameState: FEN, { from, to }: Move): boolean {
-  return getValidCapturesFrom(gameState, from).includes(to);
+export function isValidStandardCapture(gameState: FEN, { from, to }: Move): boolean {
+  return getValidStandardCapturesFrom(gameState, from).includes(to);
 }
 
 export function isValidDoubleMove(gameState: FEN, { from, to }: Move): boolean {
@@ -73,7 +73,7 @@ export function isAtomicCheck(board: Chessboard, activeColor: Color): boolean {
 export function getValidPlayerMoves(gameState: FEN): Move[] {
   const { board } = gameState;
   return (Object.keys(board) as Square[])
-    .map(from => getValidMovesFrom(gameState, from).map(to => ({ from: from, to: to })))
+    .map(from => getAllValidMovesFrom(gameState, from).map(to => ({ from: from, to: to })))
     .flat();
 }
 
@@ -114,7 +114,7 @@ export function isKingSafeAfterMove(board: Chessboard, activeColor: Color, move:
   return chessboard.findKing(result, activeColor) != null && !isAtomicCheck(result, activeColor);
 }
 
-function getValidCapturesFrom(gameState: FEN, from: Square): Square[] {
+export function getValidStandardCapturesFrom(gameState: FEN, from: Square): Square[] {
   const { board, activeColor } = gameState;
   const piece = board[from];
   if (!piece || PIECE_TO_COLOR[piece] != activeColor) return [];
@@ -136,7 +136,7 @@ function getValidCapturesFrom(gameState: FEN, from: Square): Square[] {
   return getSafeMoves(board, activeColor, from, targets, MoveType.CAPTURE);
 }
 
-function getValidStandardMovesFrom(gameState: FEN, from: Square): Square[] {
+export function getValidStandardMovesFrom(gameState: FEN, from: Square): Square[] {
   const { board, activeColor } = gameState;
   const piece = board[from];
   if (!piece || PIECE_TO_COLOR[piece] != activeColor) return [];
@@ -153,7 +153,7 @@ function getValidStandardMovesFrom(gameState: FEN, from: Square): Square[] {
   return getSafeMoves(board, activeColor, from, targets, MoveType.STANDARD_MOVE);
 }
 
-function getValidDoubleMovesFrom(gameState: FEN, from: Square): Square[] {
+export function getValidDoubleMovesFrom(gameState: FEN, from: Square): Square[] {
   const { board, activeColor } = gameState;
   const piece = board[from];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.PAWN || PIECE_TO_COLOR[piece] != activeColor) return [];
@@ -169,7 +169,7 @@ function getValidDoubleMovesFrom(gameState: FEN, from: Square): Square[] {
   return getSafeMoves(board, activeColor, from, [to], MoveType.DOUBLE);
 }
 
-function getValidEnPassantsFrom(gameState: FEN, from: Square): Square[] {
+export function getValidEnPassantsFrom(gameState: FEN, from: Square): Square[] {
   const { board, activeColor, enPassantTargets } = gameState;
   const piece = board[from];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.PAWN || PIECE_TO_COLOR[piece] != activeColor) return [];
@@ -179,7 +179,7 @@ function getValidEnPassantsFrom(gameState: FEN, from: Square): Square[] {
   return getSafeMoves(board, activeColor, from, targets, MoveType.EN_PASSANT);
 }
 
-function getValidCastlesFrom(gameState: FEN, castleSide: CastleType, from: Square): Square[] {
+export function getValidCastlesFrom(gameState: FEN, castleSide: CastleType, from: Square): Square[] {
   const { kingMove } = CASTLE_MOVES[gameState.activeColor][castleSide];
   if (from != kingMove.from || !canCastle(gameState, castleSide)) return [];
   return [kingMove.to];

@@ -290,6 +290,8 @@ export const INITIAL_GAMESTATE: FEN = {
   fullMoves: 0
 };
 
+export const CHESSBOARD_SQUARES: Square[] = Object.keys(SQUARE_TO_INDEX) as Square[];
+
 // Get the opposite player color of the given color
 export function getEnemyColor(color: Color): Color {
   return color == Color.WHITE ? Color.BLACK : Color.WHITE;

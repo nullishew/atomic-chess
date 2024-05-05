@@ -1,18 +1,21 @@
 import { Scene, Tilemaps, GameObjects, Sound } from "phaser";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { chessTileSize } from "../main";
-import { Square, Color, INITIAL_CHESSBOARD_POSITION, Pos, PIECE_TO_COLOR, MoveType, GameOverType, PromotablePiece, INITIAL_GAMESTATE, squareToTileIndex, squareToWorldXY, worldXYToSquare, Move } from "../chess/atomicChessData";
-import { getValidMovesFrom } from "../chess/validator/atomicChessValidator";
+import { Square, Color, PIECE_TO_COLOR, MoveType, GameOverType, PromotablePiece, INITIAL_GAMESTATE, squareToTileIndex, squareToWorldXY, worldXYToSquare, Move, CHESSBOARD_SQUARES } from "../chess/atomicChessData";
 import { AtomicChess } from "../chess/AtomicChess";
+import { getAllValidMovesFrom, getValidStandardCapturesFrom } from "../chess/validator/atomicChessValidator";
 
 export class Game extends Scene {
-  camera: Phaser.Cameras.Scene2D.Camera;
-
   chessboardTilemap: Tilemaps.Tilemap;
 
   pointerTileMarker: GameObjects.Graphics;
   selectedTileMarker: GameObjects.Graphics;
-  moveMarkers: Record<Square, GameObjects.Graphics>;
+
+  actionMarkers: {
+    container: GameObjects.Container,
+    moveMarkers: Record<Square, GameObjects.Graphics>,
+    captureMarkers: Record<Square, GameObjects.Graphics>,
+  };
 
   promotionMenus: Record<Color, GameObjects.Container>;
   gameOverMenus: Record<GameOverType, GameObjects.Container>;
@@ -30,8 +33,6 @@ export class Game extends Scene {
   constructor() {
     super('Game');
   }
-
-
 
   create() {
     this.cameras.main.fadeIn(3000, 0, 0, 0);
@@ -52,7 +53,8 @@ export class Game extends Scene {
 
     this.selectedTileMarker = createTileMarker(this, chessTileSize, chessTileSize * .1, 0xffffff, 1).setVisible(false);
 
-    this.moveMarkers = createMoveMarkers(this, this.add.container());
+    this.actionMarkers = createActionMarkers(this, this.add.container().setVisible(false));
+
 
     this.explosionParticles = this.add.particles(0, 0, ASSETS.PARTICLE.key, {
       speed: { min: 300, max: 600 },
@@ -167,16 +169,20 @@ export class Game extends Scene {
 
   showValidMoves(from: Square) {
     this.hideMoveMarkers();
-    getValidMovesFrom(this.chess.data, from)
-      .forEach(to => {
-        const marker = this.moveMarkers[to];
-        this.children.bringToTop(marker);
-        marker.visible = true;
-      });
+    this.actionMarkers.container.visible = true;
+    getAllValidMovesFrom(this.chess.data, from).forEach(to => this.actionMarkers.moveMarkers[to].visible = true);
+    getValidStandardCapturesFrom(this.chess.data, from).forEach(to => {
+      this.actionMarkers.moveMarkers[to].visible = false;
+      this.actionMarkers.captureMarkers[to].visible = true;
+    });
   }
 
   hideMoveMarkers() {
-    (Object.values(this.moveMarkers) as GameObjects.Graphics[]).forEach(marker => marker.visible = false);
+    this.actionMarkers.container.visible = false;
+    CHESSBOARD_SQUARES.forEach(square => {
+      this.actionMarkers.moveMarkers[square].visible = false;
+      this.actionMarkers.captureMarkers[square].visible = false;
+    });
   }
 
 }
@@ -208,20 +214,38 @@ function createTileMarker(scene: Scene, tileSize: number, lineWidth: number, col
 
 function createMoveMarker(scene: Game, x: number, y: number, size: number): GameObjects.Graphics {
   return scene.add.graphics()
-    .fillStyle(0x000000, .2)
+    .fillStyle(0x000000, .3)
     .fillCircle(x, y, size)
     .setActive(false);
 }
 
-function createMoveMarkers(scene: Game, container: GameObjects.Container) {
-  const markers: Record<Square, GameObjects.Graphics> = {} as Record<Square, GameObjects.Graphics>;
-  for (const square of Object.keys(INITIAL_CHESSBOARD_POSITION) as Square[]) {
+function createCaptureMarker(scene: Game, x: number, y: number, lineWidth: number, size: number): GameObjects.Graphics {
+  return scene.add.graphics()
+    .lineStyle(lineWidth, 0x000000, .3)
+    .strokeCircle(x, y, size)
+    .setActive(false);
+}
+
+function createActionMarkers(scene: Game, container: GameObjects.Container): {
+  container: GameObjects.Container,
+  moveMarkers: Record<Square, GameObjects.Graphics>,
+  captureMarkers: Record<Square, GameObjects.Graphics>,
+} {
+  const moveMarkers: Record<Square, GameObjects.Graphics> = {} as Record<Square, GameObjects.Graphics>;
+  const captureMarkers: Record<Square, GameObjects.Graphics> = {} as Record<Square, GameObjects.Graphics>;
+  CHESSBOARD_SQUARES.forEach(square => {
     const [r, c] = squareToTileIndex(square);
     const { x, y } = scene.chessboardTilemap.tileToWorldXY(c + .5, r + .5) as Phaser.Math.Vector2;
-    markers[square] = createMoveMarker(scene, x, y, .1 * chessTileSize).setVisible(false);
-    container.add(markers[square]);
-  }
-  return markers;
+    moveMarkers[square] = createMoveMarker(scene, x, y, .1 * chessTileSize);
+    captureMarkers[square] = createCaptureMarker(scene, x, y, .125 * chessTileSize, .4375 * chessTileSize);
+    container.add(moveMarkers[square]);
+    container.add(captureMarkers[square]);
+  });
+  return {
+    container: container,
+    moveMarkers: moveMarkers,
+    captureMarkers: captureMarkers,
+  };
 }
 
 function createPromotionMenu(game: Game, color: Color): GameObjects.Container {

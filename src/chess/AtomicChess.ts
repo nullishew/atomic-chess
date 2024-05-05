@@ -3,7 +3,7 @@ import { Game as GameScene } from "../scenes/Game";
 import { ChessPiece } from "../sprites/ChessPieceSprite";
 import { PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { Square, FEN, MoveType, Color, SQUARE_TO_INDEX, PIECE_TO_TYPE, PIECE_TO_COLOR, PieceType, Piece, Chessboard, Move, GameOverType, PromotablePiece } from "./atomicChessData";
-import { isValidCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, canPromotePawnAt, isCheckMate, isStaleMate } from "./validator/atomicChessValidator";
+import { isValidStandardCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, canPromotePawnAt, isCheckMate, isStaleMate } from "./validator/atomicChessValidator";
 import { getEnemyColor } from "./atomicChessData";
 import { findKing, ChessActionLog, capture, standardMove, castleKingside, castleQueenside, enPassant } from "./validator/atomicChessboard";
 import { squareIndexToSquare } from "./atomicChessData";
@@ -22,7 +22,7 @@ export class AtomicChess {
   }
 
   tryMove(move: Move): MoveType | null {
-    if (isValidCapture(this.data, move)) {
+    if (isValidStandardCapture(this.data, move)) {
       this.capture(move);
       return MoveType.CAPTURE;
     }
