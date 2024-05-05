@@ -1,32 +1,23 @@
-import { GameObjects, Tilemaps, Math } from "phaser";
+import { GameObjects } from "phaser";
 import { ASSETS } from "../assets";
-import { Game, getTileIndexAtSquareIndex } from "../scenes/Game";
-import { Pos } from "../chess/validator/atomicChessValidator";
-import { SQUARE_TO_INDEX, Square } from "../chess/validator/atomicChessboard";
+import { Game } from "../scenes/Game";
+import { Square, squareToWorldXY } from "../chess/atomicChessData";
 
-// Base class to represent the GUI of each individual chess piece
-export class ChessPieceSprite extends GameObjects.Sprite {
-  pos: Pos;
-  tilemap: Tilemaps.Tilemap;
-  particleEmitter: GameObjects.Particles.ParticleEmitter;
+export class ChessPiece extends GameObjects.Sprite {
+  square: Square;
   game: Game;
 
-  // Sets the initial position of the chess piece and the image of the chess piece
-  constructor(game: Game, frame: number, pos: Pos) {
-    const [r, c] = pos;
-    const { x, y } = game.chessboardMap.tileToWorldXY(c, r) as Math.Vector2;
+  constructor(game: Game, frame: number, square: Square) {
+    const {x, y} = squareToWorldXY(square, game.chessboardTilemap);
     super(game, x, y, ASSETS.CHESS_PIECES.key, frame);
-    this.pos = pos;
+    this.square = square;
     this.setOrigin(0);
     this.game = game;
   }
 
-  // Moves the chess piece
   move(square: Square) {
-    const pos = getTileIndexAtSquareIndex(SQUARE_TO_INDEX[square]);
-    this.pos = pos;
-    const [r, c] = pos;
-    const { x, y } = this.game.chessboardMap.tileToWorldXY(c, r) as Math.Vector2;
+    this.square = square;
+    const {x, y} = squareToWorldXY(square, this.game.chessboardTilemap);
     const tween = this.game.tweens.add({
       targets: this,
       x: x,
@@ -39,10 +30,8 @@ export class ChessPieceSprite extends GameObjects.Sprite {
     });
   }
 
-  // Explodes the chess piece
   explode() {
-    const [r, c] = this.pos;
-    const { x, y } = this.game.chessboardMap.tileToWorldXY(c, r) as Math.Vector2;
+    const {x, y} = squareToWorldXY(this.square, this.game.chessboardTilemap);
     const tween = this.game.tweens.add({
       targets: this,
       x: x,

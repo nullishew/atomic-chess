@@ -1,170 +1,20 @@
-export type Pos = [number, number]
-export enum Color {
-  WHITE = 'white',
-  BLACK = 'black',
-}
-
-export type Piece =
-  'k' | 'q' | 'b' | 'n' | 'r' | 'p' |
-  'K' | 'Q' | 'B' | 'N' | 'R' | 'P';
-
-export enum MoveType {
-  CAPTURE = 'c',
-  DOUBLE = 'd',
-  EN_PASSANT = 'e',
-  KINGSIDE_CASTLE = 'k',
-  PROMOTION = 'p',
-  QUEENSIDE_CASTLE = 'q',
-  STANDARD_MOVE = 's',
-}
-
-export enum PieceType {
-  KING = 'K',
-  QUEEN = 'Q',
-  BISHOP = 'B',
-  KNIGHT = 'N',
-  ROOK = 'R',
-  PAWN = 'P'
-}
-export const PIECE_TO_COLOR: Record<Piece, Color> = {
-  k: Color.BLACK,
-  q: Color.BLACK,
-  b: Color.BLACK,
-  n: Color.BLACK,
-  r: Color.BLACK,
-  p: Color.BLACK,
-  K: Color.WHITE,
-  Q: Color.WHITE,
-  B: Color.WHITE,
-  N: Color.WHITE,
-  R: Color.WHITE,
-  P: Color.WHITE
-};
-
-export const PIECE_TO_TYPE: Record<Piece, PieceType> = {
-  k: PieceType.KING,
-  q: PieceType.QUEEN,
-  b: PieceType.BISHOP,
-  n: PieceType.KNIGHT,
-  r: PieceType.ROOK,
-  p: PieceType.PAWN,
-  K: PieceType.KING,
-  Q: PieceType.QUEEN,
-  B: PieceType.BISHOP,
-  N: PieceType.KNIGHT,
-  R: PieceType.ROOK,
-  P: PieceType.PAWN
-};
-export interface MovePattern {
-  steps: number,
-  pattern: Pos[],
-}
-
-export const MOVE_PATTERNS: Record<string, Pos[]> = {
-  ALL: [
-    [0, 1],
-    [0, -1],
-    [1, 0],
-    [-1, 0],
-    [1, 1],
-    [-1, 1],
-    [-1, -1],
-    [1, -1],
-  ],
-  DIAGONAL: [
-    [1, 1],
-    [-1, 1],
-    [-1, -1],
-    [1, -1],
-  ],
-  HORIZONTAL: [
-    [0, 1],
-    [0, -1],
-  ],
-  L_SHAPE: [
-    [1, 2],
-    [2, 1],
-    [2, -1],
-    [1, -2],
-    [-1, -2],
-    [-2, -1],
-    [-2, 1],
-    [-1, 2],
-  ],
-  PLUS_SHAPE: [
-    [0, 1],
-    [0, -1],
-    [1, 0],
-    [-1, 0],
-  ],
-  VERTICAL: [
-    [1, 0],
-    [-1, 0],
-  ],
-};
-
-export const PIECE_MOVE_PATTERNS: Record<Piece, MovePattern> = {
-  K: { steps: 1, pattern: MOVE_PATTERNS.ALL },
-  Q: { steps: 7, pattern: MOVE_PATTERNS.ALL },
-  B: { steps: 7, pattern: MOVE_PATTERNS.DIAGONAL },
-  N: { steps: 1, pattern: MOVE_PATTERNS.L_SHAPE },
-  R: { steps: 7, pattern: MOVE_PATTERNS.PLUS_SHAPE },
-  P: { steps: 1, pattern: [[1, 0]] },
-  k: { steps: 1, pattern: MOVE_PATTERNS.ALL },
-  q: { steps: 7, pattern: MOVE_PATTERNS.ALL },
-  b: { steps: 7, pattern: MOVE_PATTERNS.DIAGONAL },
-  n: { steps: 1, pattern: MOVE_PATTERNS.L_SHAPE },
-  r: { steps: 7, pattern: MOVE_PATTERNS.PLUS_SHAPE },
-  p: { steps: 1, pattern: [[-1, 0]] },
-};
-
-export const PIECE_CAPTURE_PATTERNS: Record<Piece, MovePattern> = {
-  K: { steps: 0, pattern: MOVE_PATTERNS.ALL },
-  Q: { steps: 7, pattern: MOVE_PATTERNS.ALL },
-  B: { steps: 7, pattern: MOVE_PATTERNS.DIAGONAL },
-  N: { steps: 1, pattern: MOVE_PATTERNS.L_SHAPE },
-  R: { steps: 7, pattern: MOVE_PATTERNS.PLUS_SHAPE },
-  P: { steps: 1, pattern: [[1, -1], [1, 1]] },
-  k: { steps: 0, pattern: MOVE_PATTERNS.ALL },
-  q: { steps: 7, pattern: MOVE_PATTERNS.ALL },
-  b: { steps: 7, pattern: MOVE_PATTERNS.DIAGONAL },
-  n: { steps: 1, pattern: MOVE_PATTERNS.L_SHAPE },
-  r: { steps: 7, pattern: MOVE_PATTERNS.PLUS_SHAPE },
-  p: { steps: 1, pattern: [[-1, -1], [-1, 1]] }
-};
-
+import { getEnemyColor } from "../atomicChessData";
+import { FEN, PIECE_TO_TYPE, PieceType, PIECE_TO_COLOR, Color, Piece, PIECE_CAPTURE_PATTERNS, MoveType, PIECE_MOVE_PATTERNS, Square, Chessboard, Move, SQUARE_TO_INDEX, CASTLE_MOVES, CastleType } from "../atomicChessData";
 import * as chessboard from "./atomicChessboard";
+import * as atomicChessData from "../atomicChessData";
 
-export type CastlingRights = {
-  white: { kingside: boolean, queenside: boolean },
-  black: { kingside: boolean, queenside: boolean }
-}
-export type FEN = {
-  board: chessboard.Chessboard,
-  activeColor: Color,
-  canCastle: CastlingRights,
-  enPassantTargets: chessboard.Square[],
-  halfMoves: number,
-  fullMoves: number,
-}
-export interface MovePattern {
-  steps: number,
-  pattern: Pos[],
-}
-
-export function getValidMovesFrom(data: FEN, from: chessboard.Square): chessboard.Square[] {
+export function getValidMovesFrom(gameState: FEN, from: Square): Square[] {
   return [
-    ...getValidCapturesFrom(data, from),
-    ...getValidDoubleMovesFrom(data, from),
-    ...getValidEnPassantsFrom(data, from),
-    ...getValidKingsideCastlesFrom(data, from),
-    ...getValidQueensideCastlesFrom(data, from),
-    ...getValidStandardMovesFrom(data, from),
+    ...getValidCapturesFrom(gameState, from),
+    ...getValidDoubleMovesFrom(gameState, from),
+    ...getValidEnPassantsFrom(gameState, from),
+    ...getValidCastlesFrom(gameState, CastleType.KINGSIDE, from),
+    ...getValidCastlesFrom(gameState, CastleType.QUEENSIDE, from),
+    ...getValidStandardMovesFrom(gameState, from),
   ];
 }
 
-// rename to can promote pawn
-export function canPromotePawn(board: chessboard.Chessboard, square: chessboard.Square): boolean {
+export function canPromotePawnAt(board: Chessboard, square: Square): boolean {
   const piece = board[square];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.PAWN) return false;
   const endRank = PIECE_TO_COLOR[piece] == Color.WHITE ? '8' : '1';
@@ -172,31 +22,31 @@ export function canPromotePawn(board: chessboard.Chessboard, square: chessboard.
   return endRank == r;
 }
 
-export function isValidStandardMove(data: FEN, { from, to }: chessboard.Move): boolean {
-  return getValidStandardMovesFrom(data, from).includes(to);
+export function isValidStandardMove(gameState: FEN, { from, to }: Move): boolean {
+  return getValidStandardMovesFrom(gameState, from).includes(to);
 }
 
-export function isValidCapture(data: FEN, { from, to }: chessboard.Move): boolean {
-  return getValidCapturesFrom(data, from).includes(to);
+export function isValidCapture(gameState: FEN, { from, to }: Move): boolean {
+  return getValidCapturesFrom(gameState, from).includes(to);
 }
 
-export function isValidDoubleMove(data: FEN, { from, to }: chessboard.Move): boolean {
-  return getValidDoubleMovesFrom(data, from).includes(to);
+export function isValidDoubleMove(gameState: FEN, { from, to }: Move): boolean {
+  return getValidDoubleMovesFrom(gameState, from).includes(to);
 }
 
-export function isValidEnPassant(data: FEN, { from, to }: chessboard.Move): boolean {
-  return getValidEnPassantsFrom(data, from).includes(to);
+export function isValidEnPassant(gameState: FEN, { from, to }: Move): boolean {
+  return getValidEnPassantsFrom(gameState, from).includes(to);
 }
 
-export function isValidKingsideCastle(data: FEN, { from, to }: chessboard.Move): boolean {
-  return getValidKingsideCastlesFrom(data, from).includes(to);
+export function isValidKingsideCastle(gameState: FEN, { from, to }: Move): boolean {
+  return getValidCastlesFrom(gameState, CastleType.KINGSIDE, from).includes(to);
 }
 
-export function isValidQueensideCastle(data: FEN, { from, to }: chessboard.Move): boolean {
-  return getValidQueensideCastlesFrom(data, from).includes(to);
+export function isValidQueensideCastle(gameState: FEN, { from, to }: Move): boolean {
+  return getValidCastlesFrom(gameState, CastleType.QUEENSIDE, from).includes(to);
 }
 
-export function isAtomicCheck(board: chessboard.Chessboard, activeColor: Color): boolean {
+export function isAtomicCheck(board: Chessboard, activeColor: Color): boolean {
   const enemyColor = getEnemyColor(activeColor);
   const kingPos = chessboard.findKing(board, activeColor);
   const enemyKingPos = chessboard.findKing(board, enemyColor);
@@ -204,11 +54,11 @@ export function isAtomicCheck(board: chessboard.Chessboard, activeColor: Color):
   if (chessboard.isAdjacent(kingPos, enemyKingPos)) return false;
   for (let [piece, color] of Object.entries(PIECE_TO_COLOR) as [Piece, Color][]) {
     if (activeColor == color) continue;
-    const [r, c] = chessboard.SQUARE_TO_INDEX[kingPos];
+    const [r, c] = SQUARE_TO_INDEX[kingPos];
     const { pattern, steps } = PIECE_CAPTURE_PATTERNS[piece];
     for (let [dr, dc] of pattern) {
       for (let i = 1; i <= steps; i++) {
-        const square = chessboard.getSquareAtPos([r - i * dr, c - i * dc]);
+        const square = atomicChessData.squareIndexToSquare([r - i * dr, c - i * dc]);
         if (!square) break;
         const piece2 = board[square];
         if (!piece2) continue;
@@ -220,35 +70,31 @@ export function isAtomicCheck(board: chessboard.Chessboard, activeColor: Color):
   return false;
 }
 
-export function getValidPlayerMoves(data: FEN): chessboard.Move[] {
-  const { board } = data;
-  return (Object.keys(board) as chessboard.Square[])
-    .map(square => getValidMovesFrom(data, square).map(to => ({ from: square, to: to })))
+export function getValidPlayerMoves(gameState: FEN): Move[] {
+  const { board } = gameState;
+  return (Object.keys(board) as Square[])
+    .map(from => getValidMovesFrom(gameState, from).map(to => ({ from: from, to: to })))
     .flat();
 }
 
-export function existsValidPlayerMoves(data: FEN): boolean {
-  return getValidPlayerMoves(data).length > 0;
+export function existsValidPlayerMoves(gameState: FEN): boolean {
+  return getValidPlayerMoves(gameState).length > 0;
 }
 
-export function isCheckMate(data: FEN, activeColor: Color): boolean {
-  return isAtomicCheck(data.board, activeColor) && !getValidPlayerMoves(data).length;
+export function isCheckMate(gameState: FEN, activeColor: Color): boolean {
+  return isAtomicCheck(gameState.board, activeColor) && !getValidPlayerMoves(gameState).length;
 }
 
-export function isStaleMate(data: FEN, activeColor: Color): boolean {
-  return !isAtomicCheck(data.board, activeColor) && !getValidPlayerMoves(data).length && chessboard.findKing(data.board, activeColor) != null;
+export function isStaleMate(gameState: FEN, activeColor: Color): boolean {
+  return !isAtomicCheck(gameState.board, activeColor) && !getValidPlayerMoves(gameState).length && chessboard.findKing(gameState.board, activeColor) != null;
 }
 
-export function getEnemyColor(color: Color): Color {
-  return color == Color.WHITE ? Color.BLACK : Color.WHITE;
-}
-
-export function getSafeMoves(board: chessboard.Chessboard, activeColor: Color, from: chessboard.Square, tos: chessboard.Square[], moveType: MoveType): chessboard.Square[] {
+export function getSafeMoves(board: Chessboard, activeColor: Color, from: Square, tos: Square[], moveType: MoveType): Square[] {
   return tos.filter(to => isKingSafeAfterMove(board, activeColor, { from: from, to: to }, moveType));
 }
 
-export function isKingSafeAfterMove(board: chessboard.Chessboard, activeColor: Color, move: chessboard.Move, moveType: MoveType) {
-  let result: chessboard.Chessboard;
+export function isKingSafeAfterMove(board: Chessboard, activeColor: Color, move: Move, moveType: MoveType): boolean {
+  let result: Chessboard;
   switch (moveType) {
     case MoveType.CAPTURE:
       ({ result } = chessboard.capture(board, move));
@@ -265,94 +111,87 @@ export function isKingSafeAfterMove(board: chessboard.Chessboard, activeColor: C
     default:
       ({ result } = chessboard.standardMove(board, move));
   }
-  return chessboard.findKing(result, activeColor) && !isAtomicCheck(result, activeColor);
+  return chessboard.findKing(result, activeColor) != null && !isAtomicCheck(result, activeColor);
 }
 
-function getValidCapturesFrom(data: FEN, from: chessboard.Square): chessboard.Square[] {
-  const { board, activeColor } = data;
+function getValidCapturesFrom(gameState: FEN, from: Square): Square[] {
+  const { board, activeColor } = gameState;
   const piece = board[from];
   if (!piece || PIECE_TO_COLOR[piece] != activeColor) return [];
   const enemyColor = getEnemyColor(activeColor);
-  const [r, c] = chessboard.SQUARE_TO_INDEX[from];
+  const [r, c] = SQUARE_TO_INDEX[from];
   const { pattern, steps } = PIECE_CAPTURE_PATTERNS[piece];
-  const moves: chessboard.Square[] = [];
+  const targets: Square[] = [];
   for (let [dr, dc] of pattern) {
     for (let i = 1; i <= steps; i++) {
-      const to = chessboard.getSquareAtPos([r + i * dr, c + i * dc]);
+      const to = atomicChessData.squareIndexToSquare([r + i * dr, c + i * dc]);
       if (!to) break;
       const piece2 = board[to];
       if (!piece2) continue;
       if (PIECE_TO_COLOR[piece2] != enemyColor) break;
-      moves.push(to);
+      targets.push(to);
       break;
     }
   }
-  return getSafeMoves(board, activeColor, from, moves, MoveType.CAPTURE);
+  return getSafeMoves(board, activeColor, from, targets, MoveType.CAPTURE);
 }
 
-function getValidStandardMovesFrom(data: FEN, from: chessboard.Square): chessboard.Square[] {
-  const { board, activeColor } = data;
+function getValidStandardMovesFrom(gameState: FEN, from: Square): Square[] {
+  const { board, activeColor } = gameState;
   const piece = board[from];
   if (!piece || PIECE_TO_COLOR[piece] != activeColor) return [];
-  const [r, c] = chessboard.SQUARE_TO_INDEX[from];
+  const [r, c] = SQUARE_TO_INDEX[from];
   const { pattern, steps } = PIECE_MOVE_PATTERNS[piece];
-  const moves: chessboard.Square[] = [];
+  const targets: Square[] = [];
   for (let [dr, dc] of pattern) {
     for (let i = 1; i <= steps; i++) {
-      const square = chessboard.getSquareAtPos([r + i * dr, c + i * dc]);
+      const square = atomicChessData.squareIndexToSquare([r + i * dr, c + i * dc]);
       if (!square || board[square]) break;
-      moves.push(square);
+      targets.push(square);
     }
   }
-  return getSafeMoves(board, activeColor, from, moves, MoveType.STANDARD_MOVE);
+  return getSafeMoves(board, activeColor, from, targets, MoveType.STANDARD_MOVE);
 }
 
-function getValidDoubleMovesFrom(data: FEN, from: chessboard.Square): chessboard.Square[] {
-  const { board, activeColor } = data;
+function getValidDoubleMovesFrom(gameState: FEN, from: Square): Square[] {
+  const { board, activeColor } = gameState;
   const piece = board[from];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.PAWN || PIECE_TO_COLOR[piece] != activeColor) return [];
-  const [r, c] = chessboard.SQUARE_TO_INDEX[from];
+  const [r, c] = SQUARE_TO_INDEX[from];
   const startingRank = activeColor == Color.WHITE ? 1 : 6;
   if (r != startingRank) return [];
   const { pattern } = PIECE_MOVE_PATTERNS[piece];
   const [dir] = pattern[0];
-  const square1 = chessboard.getSquareAtPos([r + dir, c]);
+  const square1 = atomicChessData.squareIndexToSquare([r + dir, c]);
   if (!square1 || board[square1]) return [];
-  const to = chessboard.getSquareAtPos([r + 2 * dir, c]);
+  const to = atomicChessData.squareIndexToSquare([r + 2 * dir, c]);
   if (!to) return [];
   return getSafeMoves(board, activeColor, from, [to], MoveType.DOUBLE);
 }
 
-function getValidEnPassantsFrom(data: FEN, from: chessboard.Square): chessboard.Square[] {
-  const { board, activeColor, enPassantTargets } = data;
+function getValidEnPassantsFrom(gameState: FEN, from: Square): Square[] {
+  const { board, activeColor, enPassantTargets } = gameState;
   const piece = board[from];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.PAWN || PIECE_TO_COLOR[piece] != activeColor) return [];
-  const [r, c] = chessboard.SQUARE_TO_INDEX[from];
-  const moves = PIECE_CAPTURE_PATTERNS[piece].pattern.map(([dr, dc]) => chessboard.getSquareAtPos([r + dr, c + dc]))
-    .filter(square => square && enPassantTargets.includes(square)) as chessboard.Square[];
-  return getSafeMoves(board, activeColor, from, moves, MoveType.EN_PASSANT);
+  const [r, c] = SQUARE_TO_INDEX[from];
+  const targets = PIECE_CAPTURE_PATTERNS[piece].pattern.map(([dr, dc]) => atomicChessData.squareIndexToSquare([r + dr, c + dc]))
+    .filter(square => square && enPassantTargets.includes(square)) as Square[];
+  return getSafeMoves(board, activeColor, from, targets, MoveType.EN_PASSANT);
 }
 
-function getValidKingsideCastlesFrom(data: FEN, from: chessboard.Square): chessboard.Square[] {
-  const { board, activeColor, canCastle } = data;
-  const piece = board[from];
-  if (!piece || PIECE_TO_TYPE[piece] != PieceType.KING || PIECE_TO_COLOR[piece] != activeColor) return [];
-  const { king, between, rook } = chessboard.castlingMoves[activeColor].kingside;
-  if (!canCastle[activeColor].kingside || from != king.from || isAtomicCheck(board, activeColor)) return [];
-  const piece2 = board[rook.from];
-  if (!piece2 || PIECE_TO_TYPE[piece2] != PieceType.ROOK || PIECE_TO_COLOR[piece2] != activeColor) return[];
- if (between.some(square => board[square])) return [];
-  return getSafeMoves(board, activeColor, from, [king.to], MoveType.KINGSIDE_CASTLE);
+function getValidCastlesFrom(gameState: FEN, castleSide: CastleType, from: Square): Square[] {
+  const { kingMove } = CASTLE_MOVES[gameState.activeColor][castleSide];
+  if (from != kingMove.from || !canCastle(gameState, castleSide)) return [];
+  return [kingMove.to];
 }
 
-function getValidQueensideCastlesFrom(data: FEN, from: chessboard.Square): chessboard.Square[] {
-  const { board, activeColor, canCastle } = data;
-  const piece = board[from];
-  if (!piece || PIECE_TO_TYPE[piece] != PieceType.KING || PIECE_TO_COLOR[piece] != activeColor) return [];
-  const { king, between, rook } = chessboard.castlingMoves[activeColor].queenside;
-  if (!canCastle[activeColor].queenside || from != king.from || isAtomicCheck(board, activeColor)) return [];
-  const piece2 = board[rook.from];
-  if (!piece2 || PIECE_TO_TYPE[piece2] != PieceType.ROOK || PIECE_TO_COLOR[piece2] != activeColor) return[];
-  if (between.some(square => board[square])) return [];
-  return getSafeMoves(board, activeColor, from, [king.to], MoveType.KINGSIDE_CASTLE);
+function canCastle({ board, activeColor, hasCastlingRights }: FEN, castleSide: CastleType): boolean {
+  if (!hasCastlingRights[activeColor][castleSide] || isAtomicCheck(board, activeColor)) return false;
+  const { kingMove, squaresBetween, rookMove } = CASTLE_MOVES[activeColor][castleSide];
+  const king = board[kingMove.from];
+  const rook = board[rookMove.from];
+  if (!king || PIECE_TO_TYPE[king] != PieceType.KING || PIECE_TO_COLOR[king] != activeColor) return false;
+  if (!rook || PIECE_TO_TYPE[rook] != PieceType.ROOK || PIECE_TO_COLOR[rook] != activeColor) return false;
+  if (squaresBetween.some(square => board[square])) return false;
+  return isKingSafeAfterMove(board, activeColor, kingMove, castleSide == CastleType.KINGSIDE ? MoveType.KINGSIDE_CASTLE : MoveType.QUEENSIDE_CASTLE);
 }

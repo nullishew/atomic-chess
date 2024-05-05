@@ -1,20 +1,15 @@
 import { GameObjects } from "phaser";
-import { Game as GameScene, getTileIndexAtSquareIndex, PIECE_TO_TEXTURE_FRAME } from "../scenes/Game";
-import { ChessPieceSprite } from "../sprites/ChessPieceSprite";
-import { MoveType, isValidCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, Color, getEnemyColor, isCheckMate, isStaleMate, PIECE_TO_TYPE, PieceType, PIECE_TO_COLOR, Piece, Pos, canPromotePawn } from "./validator/atomicChessValidator";
-import { Square, FEN, Move, findKing, ChessActionLog, SQUARE_TO_INDEX, capture, getSquareAtPos, castleKingside, castleQueenside, enPassant, standardMove, Chessboard } from "./validator/atomicChessboard";
+import { Game as GameScene } from "../scenes/Game";
+import { ChessPiece } from "../sprites/ChessPieceSprite";
+import { PIECE_TO_TEXTURE_FRAME } from "../assets";
+import { Square, FEN, MoveType, Color, SQUARE_TO_INDEX, PIECE_TO_TYPE, PIECE_TO_COLOR, PieceType, Piece, Chessboard, Move, GameOverType, PromotablePiece } from "./atomicChessData";
+import { isValidCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, canPromotePawnAt, isCheckMate, isStaleMate } from "./validator/atomicChessValidator";
+import { getEnemyColor } from "./atomicChessData";
+import { findKing, ChessActionLog, capture, standardMove, castleKingside, castleQueenside, enPassant } from "./validator/atomicChessboard";
+import { squareIndexToSquare } from "./atomicChessData";
 
-export type PromotablePieceNotation = 'Q' | 'q' | 'B' | 'b' | 'N' | 'n' | 'R' | 'r';
-export enum GameOverType {
-  WHITE_WIN = 'w',
-  BLACK_WIN = 'b',
-  DRAW = 'd',
-  STALEMATE = 's',
-}
-
-// Class representing a game of Atomic Chess
 export class AtomicChess {
-  sprites: Record<Square, ChessPieceSprite | null>; // Store the GUI
+  sprites: Record<Square, ChessPiece | null>;
   data: FEN;
   game: GameScene;
   spriteContainer: GameObjects.Container
@@ -49,7 +44,7 @@ export class AtomicChess {
     }
     if (isValidStandardMove(this.data, move)) {
       this.moveStandard(move);
-      return canPromotePawn(this.data.board, move.to) ? MoveType.PROMOTION : MoveType.STANDARD_MOVE;
+      return canPromotePawnAt(this.data.board, move.to) ? MoveType.PROMOTION : MoveType.STANDARD_MOVE;
     }
     return null;
   }
@@ -62,12 +57,10 @@ export class AtomicChess {
     return null;
   }
 
-  // does not account for threefold repetition
   isDraw() {
     return this.isFiftyMoveDraw();
   }
 
-  // Checks if the given player has won by checkmating or exploding the enemy king
   isWin(color: Color) {
     const inactiveColor = getEnemyColor(color);
     const { board } = this.data;
@@ -82,7 +75,6 @@ export class AtomicChess {
     return isStaleMate(this.data, this.data.activeColor);
   }
 
-  // Switches the turn by incrementing the half clock, incrementing full moves every two turns, setting the current color to the opposite color, and resetting the possible en passants
   switchTurn() {
     this.data.halfMoves++;
     this.data.fullMoves += +(this.data.activeColor == Color.BLACK);
@@ -90,7 +82,6 @@ export class AtomicChess {
     this.data.enPassantTargets = [];
   }
 
-  // perhaps add parameters like pawn moved, rook moved, king moved, and captured to make things easier
   update({ moves, explosions, result }: ChessActionLog) {
     this.data.board = result;
     for (const square of explosions) {
@@ -107,25 +98,22 @@ export class AtomicChess {
     }
   }
 
-  // code to promote pawn
-  promote(square: Square, piece: PromotablePieceNotation) {
-    console.log('promotion');
+  promote(square: Square, piece: PromotablePiece) {
+    console.log(`pawn promotion at ${square} to ${piece}`);
     this.data.board[square] = piece;
     this.sprites[square]?.destroy();
-    const sprite = createChessPieceSprite(this.game, piece, getTileIndexAtSquareIndex(SQUARE_TO_INDEX[square]));
+    const sprite = createChessPieceSprite(this.game, piece, square);
     this.spriteContainer.add(sprite);
     this.sprites[square] = sprite;
   }
 
-  // capture a piece and reset the half clock
   capture(move: Move) {
     console.log('standard capture');
     this.switchTurn();
     this.data.halfMoves = 0;
-
     const {to} = move;
     const capturedPiece = this.data.board[to];
-    const { black, white } = this.data.canCastle;
+    const { black, white } = this.data.hasCastlingRights;
     switch (capturedPiece) {
       case 'R':
         if (to == 'a1') {
@@ -142,12 +130,9 @@ export class AtomicChess {
         }
         break;
     }
-
-    // update chess position and ui
     this.update(capture(this.data.board, move));
   }
 
-  // ordinary, non special, non capture moves
   moveStandard(move: Move) {
     console.log('standard move');
     this.switchTurn();
@@ -157,14 +142,14 @@ export class AtomicChess {
     const type = PIECE_TO_TYPE[piece];
     const color = PIECE_TO_COLOR[piece];
     switch (type) {
-      case PieceType.PAWN: // reset half clock when a pawn moves
+      case PieceType.PAWN:
         this.data.halfMoves = 0;
         break;
-      case PieceType.KING: // prevent castling with a king that has moved
-        this.data.canCastle[color] = { kingside: false, queenside: false };
+      case PieceType.KING:
+        this.data.hasCastlingRights[color] = { kingside: false, queenside: false };
         break;
-      case PieceType.ROOK: // prevent castling with rooks that have moved
-        const { black, white } = this.data.canCastle;
+      case PieceType.ROOK:
+        const { black, white } = this.data.hasCastlingRights;
         if (color == Color.WHITE) {
           if (from == 'a1') {
             white.queenside = false;
@@ -183,61 +168,49 @@ export class AtomicChess {
     this.update(standardMove(this.data.board, move));
   }
 
-  // move a pawn two spaces
   moveDouble(move: Move) {
     this.moveStandard(move);
-
-    // add the pawn that moved as a potential en passant target
     const { from, to } = move;
     const [r1, c] = SQUARE_TO_INDEX[from];
     const r2 = SQUARE_TO_INDEX[to][0];
-    this.data.enPassantTargets.push(getSquareAtPos([(r1 + r2) / 2, c]) as Square);
+    this.data.enPassantTargets.push(squareIndexToSquare([(r1 + r2) / 2, c]) as Square);
   }
 
   castleKingside(activeColor: Color) {
-    console.log('castle kingside');
+    console.log('kingside castle');
     this.switchTurn();
-
-    this.data.canCastle[activeColor] = { kingside: false, queenside: false };
-
+    this.data.hasCastlingRights[activeColor] = { kingside: false, queenside: false };
     this.update(castleKingside(this.data.board, activeColor));
   }
 
   castleQueenside(activeColor: Color) {
-    console.log('castle queenside');
+    console.log('queenside castle');
     this.switchTurn();
-
-    this.data.canCastle[activeColor] = { kingside: false, queenside: false };
-
+    this.data.hasCastlingRights[activeColor] = { kingside: false, queenside: false };
     this.update(castleQueenside(this.data.board, activeColor));
   }
 
   enPassant(move: Move) {
-    console.log('en passant!!!!');
+    console.log('en passant');
     this.switchTurn();
-
     this.data.halfMoves = 0;
-
-    // update chess position and ui
     this.update(enPassant(this.data.board, move));
 
   }
-
 }
 
-// Factory method to create a chess piece sprite
-export function createChessPieceSprite(scene: GameScene, piece: Piece, pos: Pos) {
-  return scene.add.existing(new ChessPieceSprite(scene, PIECE_TO_TEXTURE_FRAME[piece], pos)); // Create and return sprite
+function createChessPieceSprite(scene: GameScene, piece: Piece, square: Square) {
+  return scene.add.existing(new ChessPiece(scene, PIECE_TO_TEXTURE_FRAME[piece], square));
 }
 
 function createChessPieceSprites(scene: GameScene, container: GameObjects.Container, board: Chessboard) {
-  const chessboardSprites: Record<Square, ChessPieceSprite | null> = {} as Record<Square, ChessPieceSprite | null>;
+  const chessboardSprites: Record<Square, ChessPiece | null> = {} as Record<Square, ChessPiece | null>;
   for (const [square, piece] of Object.entries(board) as [Square, Piece | null][]) {
     if (!piece) {
       chessboardSprites[square] = null;
       continue;
     }
-    const sprite = createChessPieceSprite(scene, piece, getTileIndexAtSquareIndex(SQUARE_TO_INDEX[square]));
+    const sprite = createChessPieceSprite(scene, piece, square);
     chessboardSprites[square] = sprite;
     container.add(sprite);
   }
