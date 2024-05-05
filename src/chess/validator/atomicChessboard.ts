@@ -1,4 +1,4 @@
-import { Color, Piece, PieceType, Pos } from "./atomicChessValidator";
+import { Color, PIECE_TO_TYPE, Piece, PieceType, Pos } from "./atomicChessValidator";
 
 export type CastlingRights = {
   white: { kingside: boolean, queenside: boolean },
@@ -75,6 +75,7 @@ export interface Move {
   from: Square,
   to: Square,
 }
+
 export interface ChessActionLog {
   moves: Move[],
   explosions: Square[],
@@ -105,16 +106,30 @@ function explodeSquare(board: Chessboard, square: Square) {
   board[square] = null;
 }
 
-// returns squares that got exploded
-function explodeArea(board: Chessboard, square: Square): Square[] {
-  let explosions: Square[] = [square];
+function explodeArea(board: Chessboard, square: Square) {
   explodeSquare(board, square);
   const [r, c] = SQUARE_TO_INDEX[square];
   for (let dr = -1; dr <= 1; dr++) {
     for (let dc = -1; dc <= 1; dc++) {
       const adjSquare = getSquareAtPos([r + dr, c + dc]);
-      if (!adjSquare || !board[adjSquare] || board[adjSquare] == PieceType.PAWN) continue;
+      if (!adjSquare) continue;
+      const piece = board[adjSquare];
+      if (!piece || PIECE_TO_TYPE[piece] == PieceType.PAWN) continue;
       explodeSquare(board, adjSquare);
+    }
+  }
+}
+
+// returns surrounding explodable squares
+function getSurroundingExplosions(board: Chessboard, square: Square): Square[] {
+  let explosions: Square[] = [];
+  const [r, c] = SQUARE_TO_INDEX[square];
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const adjSquare = getSquareAtPos([r + dr, c + dc]);
+      if (!adjSquare) continue;
+      const piece = board[adjSquare];
+      if (!piece || PIECE_TO_TYPE[piece] == PieceType.PAWN) continue;
       explosions.push(adjSquare);
     }
   }
@@ -135,7 +150,8 @@ export function capture(board: Chessboard, move: Move): ChessActionLog {
   let result = structuredClone(board);
   const { to } = move;
   movePiece(result, move);
-  const explosions = explodeArea(result, to);
+  const explosions = [to, ...getSurroundingExplosions(result, to)];
+  explodeArea(result, to);
   return {
     moves: [move],
     explosions: explosions,
@@ -143,7 +159,7 @@ export function capture(board: Chessboard, move: Move): ChessActionLog {
   };
 }
 
-export function enPassant(board: Chessboard, move: Move) {
+export function enPassant(board: Chessboard, move: Move): ChessActionLog {
   let result = structuredClone(board);
   const { from, to } = move;
   const r1 = SQUARE_TO_INDEX[from][0];
@@ -151,7 +167,8 @@ export function enPassant(board: Chessboard, move: Move) {
   const target = getSquareAtPos([r1, c2]) as Square;
   movePiece(result, move);
   explodeSquare(result, target)
-  let explosions = explodeArea(result, to);
+  const explosions = [to, target, ...getSurroundingExplosions(result, to)];
+  explodeArea(result, to);
   return {
     moves: [move],
     explosions: explosions,

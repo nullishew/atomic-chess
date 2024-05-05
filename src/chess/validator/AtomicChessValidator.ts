@@ -231,9 +231,8 @@ export function existsValidPlayerMoves(data: FEN): boolean {
   return getValidPlayerMoves(data).length > 0;
 }
 
-export function isCheckMate(data: FEN): boolean {
-  const { board, activeColor } = data;
-  return isAtomicCheck(board, activeColor) && !getValidPlayerMoves(data).length;
+export function isCheckMate(data: FEN, activeColor: Color): boolean {
+  return isAtomicCheck(data.board, activeColor) && !getValidPlayerMoves(data).length;
 }
 
 export function isStaleMate(data: FEN, activeColor: Color): boolean {

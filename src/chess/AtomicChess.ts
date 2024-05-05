@@ -71,7 +71,7 @@ export class AtomicChess {
   isWin(color: Color) {
     const inactiveColor = getEnemyColor(color);
     const { board } = this.data;
-    return isCheckMate(this.data) || !findKing(board, inactiveColor);
+    return isCheckMate(this.data, inactiveColor) || !findKing(board, inactiveColor);
   }
 
   isFiftyMoveDraw() {
@@ -123,6 +123,26 @@ export class AtomicChess {
     this.switchTurn();
     this.data.halfMoves = 0;
 
+    const {to} = move;
+    const capturedPiece = this.data.board[to];
+    const { black, white } = this.data.canCastle;
+    switch (capturedPiece) {
+      case 'R':
+        if (to == 'a1') {
+          white.queenside = false;
+        } else if (to == 'h1') {
+          white.kingside = false;
+        }
+        break;
+      case 'r':
+        if (to == 'a8') {
+          black.queenside = false;
+        } else if (to == 'h8') {
+          black.kingside = false;
+        }
+        break;
+    }
+
     // update chess position and ui
     this.update(capture(this.data.board, move));
   }
@@ -131,16 +151,41 @@ export class AtomicChess {
   moveStandard(move: Move) {
     console.log('standard move');
     this.switchTurn();
-    this.movePiece(move);
+    const { from } = move;
+    const piece = this.data.board[from];
+    if (!piece) return;
+    const type = PIECE_TO_TYPE[piece];
+    const color = PIECE_TO_COLOR[piece];
+    switch (type) {
+      case PieceType.PAWN: // reset half clock when a pawn moves
+        this.data.halfMoves = 0;
+        break;
+      case PieceType.KING: // prevent castling with a king that has moved
+        this.data.canCastle[color] = { kingside: false, queenside: false };
+        break;
+      case PieceType.ROOK: // prevent castling with rooks that have moved
+        const { black, white } = this.data.canCastle;
+        if (color == Color.WHITE) {
+          if (from == 'a1') {
+            white.queenside = false;
+          } else if (from == 'h1') {
+            white.kingside = false;
+          }
+        } else {
+          if (from == 'a8') {
+            black.queenside = false;
+          } else if (from == 'h8') {
+            black.kingside = false;
+          }
+        }
+        break;
+    }
+    this.update(standardMove(this.data.board, move));
   }
 
   // move a pawn two spaces
   moveDouble(move: Move) {
-    console.log('pawn double move');
-    this.switchTurn();
-
-    // move the pawn
-    this.movePiece(move);
+    this.moveStandard(move);
 
     // add the pawn that moved as a potential en passant target
     const { from, to } = move;
@@ -176,41 +221,6 @@ export class AtomicChess {
     // update chess position and ui
     this.update(enPassant(this.data.board, move));
 
-  }
-
-  movePiece(move: Move) {
-    const { board } = this.data;
-    const { from, to } = move;
-    const piece = board[from];
-    if (!piece || board[to]) return;
-    switch (PIECE_TO_TYPE[piece]) {
-      case PieceType.PAWN: // reset half clock when a pawn moves
-        this.data.halfMoves = 0;
-        break;
-      case PieceType.KING: // prevent castling with a king that has moved
-        this.data.canCastle[PIECE_TO_COLOR[piece]] = { kingside: false, queenside: false };
-        break;
-      case PieceType.ROOK: // prevent castling with rooks that have moved
-        const { black, white } = this.data.canCastle;
-        if (PIECE_TO_COLOR[piece] == Color.WHITE) {
-          if (from == 'a1') {
-            white.queenside = false;
-          } else if (from == 'h1') {
-            white.kingside = false;
-          }
-        } else {
-          if (from == 'a8') {
-            black.queenside = false;
-          } else if (from == 'h8') {
-            black.kingside = false;
-          }
-        }
-        break;
-      default:
-    }
-
-    // update chess position and ui
-    this.update(standardMove(board, move));
   }
 
 }
