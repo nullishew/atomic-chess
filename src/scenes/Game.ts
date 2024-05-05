@@ -234,8 +234,9 @@ function createActionMarkers(scene: Game, container: GameObjects.Container): {
   const moveMarkers: Record<Square, GameObjects.Graphics> = {} as Record<Square, GameObjects.Graphics>;
   const captureMarkers: Record<Square, GameObjects.Graphics> = {} as Record<Square, GameObjects.Graphics>;
   CHESSBOARD_SQUARES.forEach(square => {
-    const [r, c] = squareToTileIndex(square);
-    const { x, y } = scene.chessboardTilemap.tileToWorldXY(c + .5, r + .5) as Phaser.Math.Vector2;
+    let { x, y } = squareToWorldXY(square, scene.chessboardTilemap);
+    x += .5 * chessTileSize;
+    y += .5 * chessTileSize;
     moveMarkers[square] = createMoveMarker(scene, x, y, .1 * chessTileSize);
     captureMarkers[square] = createCaptureMarker(scene, x, y, .125 * chessTileSize, .4375 * chessTileSize);
     container.add(moveMarkers[square]);

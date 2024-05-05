@@ -6,7 +6,7 @@ import { Square, FEN, MoveType, Color, SQUARE_TO_INDEX, PIECE_TO_TYPE, PIECE_TO_
 import { isValidStandardCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, canPromotePawnAt, isCheckMate, isStaleMate } from "./validator/atomicChessValidator";
 import { getEnemyColor } from "./atomicChessData";
 import { findKing, ChessActionLog, capture, standardMove, castleKingside, castleQueenside, enPassant } from "./validator/atomicChessboard";
-import { squareIndexToSquare } from "./atomicChessData";
+import { gridIndexToSquare } from "./atomicChessData";
 
 export class AtomicChess {
   sprites: Record<Square, ChessPiece | null>;
@@ -15,7 +15,7 @@ export class AtomicChess {
   spriteContainer: GameObjects.Container
 
   constructor(data: FEN, game: GameScene, spriteContainer: GameObjects.Container) {
-    this.data = data;
+    this.data = structuredClone(data);
     this.game = game;
     this.spriteContainer = spriteContainer;
     this.sprites = createChessPieceSprites(game, spriteContainer, data.board);
@@ -173,7 +173,7 @@ export class AtomicChess {
     const { from, to } = move;
     const [r1, c] = SQUARE_TO_INDEX[from];
     const r2 = SQUARE_TO_INDEX[to][0];
-    this.data.enPassantTargets.push(squareIndexToSquare([(r1 + r2) / 2, c]) as Square);
+    this.data.enPassantTargets.push(gridIndexToSquare([(r1 + r2) / 2, c]) as Square);
   }
 
   castleKingside(activeColor: Color) {

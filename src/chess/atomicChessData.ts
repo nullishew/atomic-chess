@@ -292,56 +292,39 @@ export const INITIAL_GAMESTATE: FEN = {
 
 export const CHESSBOARD_SQUARES: Square[] = Object.keys(SQUARE_TO_INDEX) as Square[];
 
-// Get the opposite player color of the given color
+// Returns the opposite player color of the given color
 export function getEnemyColor(color: Color): Color {
   return color == Color.WHITE ? Color.BLACK : Color.WHITE;
 }
 
-
-
-// imagine having 5 types of units for your coordinates polluting your codebase...
-// worldxy, tilexy, tileindex, squareindex, square
-
-
-// Returns the square at a given position
-export function squareIndexToSquare([r, f]: Pos): Square | null {
+// Converts a square index to the corresponding square
+export function gridIndexToSquare([r, f]: Pos): Square | null {
   if (r < 0 || r > 7 || f < 0 || f > 7) return null;
   return FILES[f] + RANKS[r] as Square;
 }
 
-export function tileIndexToSquare([r, c]: Pos): Square | null {
-  return squareIndexToSquare([7 - r, c]);
-}
-
-export function squareIndexToTileIndex(index: SquareIndex): Pos {
-  const [r, c] = index;
-  return [7 - r, c];
+export function squareIndexToSquare([r, f]: SquareIndex): Square {
+  return FILES[f] + RANKS[r] as Square;
 }
 
 export function squareToTileIndex(square: Square): Pos {
-  return squareIndexToTileIndex(SQUARE_TO_INDEX[square]);
-}
-
-export function squareToTileXY(square: Square): Phaser.Types.Math.Vector2Like {
-  const [y, x] = SQUARE_TO_INDEX[square];
-  return { x: x, y: 7 - y };
+  const [r, c] = SQUARE_TO_INDEX[square];
+  return [7 - r, c];
 }
 
 export function squareToWorldXY(square: Square, tilemap: Phaser.Tilemaps.Tilemap): Phaser.Math.Vector2 {
-  const { x, y } = squareToTileXY(square);
-  return tilemap.tileToWorldXY(x, y) as Phaser.Math.Vector2;
+  const [r, c] = SQUARE_TO_INDEX[square];
+  return tilemap.tileToWorldXY(c, 7 - r) as Phaser.Math.Vector2;
 }
 
 export function worldXYToSquare(x: number, y: number, tilemap: Phaser.Tilemaps.Tilemap): Square | null {
   const { x: c, y: r } = tilemap.worldToTileXY(x, y) as Phaser.Math.Vector2;
-  return tileIndexToSquare([r, c]);
+  return gridIndexToSquare([7 - r, c]);
 }
 
-
-
-// // Moves a square by a given offset
-// export function moveSquare(square: Square, [dr, dc]: Pos): Square | null {
-//   const [r, c] = SQUARE_TO_INDEX[square];
-//   return getSquareAtPos([r + dr, c + dc]);
-// }
+// Moves a square by a given offset
+export function moveSquare(square: Square, [dr, dc]: SquareIndex): Square | null {
+  const [r, c] = SQUARE_TO_INDEX[square];
+  return gridIndexToSquare([r + dr, c + dc]);
+}
 

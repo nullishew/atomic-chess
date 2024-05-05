@@ -58,7 +58,7 @@ export function isAtomicCheck(board: Chessboard, activeColor: Color): boolean {
     const { pattern, steps } = PIECE_CAPTURE_PATTERNS[piece];
     for (let [dr, dc] of pattern) {
       for (let i = 1; i <= steps; i++) {
-        const square = atomicChessData.squareIndexToSquare([r - i * dr, c - i * dc]);
+        const square = atomicChessData.gridIndexToSquare([r - i * dr, c - i * dc]);
         if (!square) break;
         const piece2 = board[square];
         if (!piece2) continue;
@@ -124,7 +124,7 @@ export function getValidStandardCapturesFrom(gameState: FEN, from: Square): Squa
   const targets: Square[] = [];
   for (let [dr, dc] of pattern) {
     for (let i = 1; i <= steps; i++) {
-      const to = atomicChessData.squareIndexToSquare([r + i * dr, c + i * dc]);
+      const to = atomicChessData.gridIndexToSquare([r + i * dr, c + i * dc]);
       if (!to) break;
       const piece2 = board[to];
       if (!piece2) continue;
@@ -145,7 +145,7 @@ export function getValidStandardMovesFrom(gameState: FEN, from: Square): Square[
   const targets: Square[] = [];
   for (let [dr, dc] of pattern) {
     for (let i = 1; i <= steps; i++) {
-      const square = atomicChessData.squareIndexToSquare([r + i * dr, c + i * dc]);
+      const square = atomicChessData.gridIndexToSquare([r + i * dr, c + i * dc]);
       if (!square || board[square]) break;
       targets.push(square);
     }
@@ -162,10 +162,10 @@ export function getValidDoubleMovesFrom(gameState: FEN, from: Square): Square[] 
   if (r != startingRank) return [];
   const { pattern } = PIECE_MOVE_PATTERNS[piece];
   const [dir] = pattern[0];
-  const square1 = atomicChessData.squareIndexToSquare([r + dir, c]);
+  const square1 = atomicChessData.gridIndexToSquare([r + dir, c]);
   if (!square1 || board[square1]) return [];
-  const to = atomicChessData.squareIndexToSquare([r + 2 * dir, c]);
-  if (!to) return [];
+  const to = atomicChessData.gridIndexToSquare([r + 2 * dir, c]);
+  if (!to || board[to]) return [];
   return getSafeMoves(board, activeColor, from, [to], MoveType.DOUBLE);
 }
 
@@ -174,7 +174,7 @@ export function getValidEnPassantsFrom(gameState: FEN, from: Square): Square[] {
   const piece = board[from];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.PAWN || PIECE_TO_COLOR[piece] != activeColor) return [];
   const [r, c] = SQUARE_TO_INDEX[from];
-  const targets = PIECE_CAPTURE_PATTERNS[piece].pattern.map(([dr, dc]) => atomicChessData.squareIndexToSquare([r + dr, c + dc]))
+  const targets = PIECE_CAPTURE_PATTERNS[piece].pattern.map(([dr, dc]) => atomicChessData.gridIndexToSquare([r + dr, c + dc]))
     .filter(square => square && enPassantTargets.includes(square)) as Square[];
   return getSafeMoves(board, activeColor, from, targets, MoveType.EN_PASSANT);
 }
