@@ -1,7 +1,7 @@
 import { GameObjects } from "phaser";
 import { ASSETS } from "../assets";
 import { Game } from "../scenes/Game";
-import { Square, squareToWorldXY } from "../chess/atomicChessData";
+import { Square, squareToWorldXY } from "../atomic-chess/atomicChessData";
 
 export class ChessPiece extends GameObjects.Sprite {
   square: Square;

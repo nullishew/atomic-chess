@@ -1,9 +1,9 @@
 import { Scene, Tilemaps, GameObjects, Sound } from "phaser";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { chessTileSize } from "../main";
-import { Square, Color, PIECE_TO_COLOR, MoveType, GameOverType, PromotablePiece, INITIAL_GAMESTATE, squareToTileIndex, squareToWorldXY, worldXYToSquare, Move, CHESSBOARD_SQUARES } from "../chess/atomicChessData";
-import { AtomicChess } from "../chess/AtomicChess";
-import { getAllValidMovesFrom, getValidStandardCapturesFrom } from "../chess/validator/atomicChessValidator";
+import { Square, Color, PIECE_TO_COLOR, MoveType, GameOverType, PromotablePiece, INITIAL_GAMESTATE, squareToTileIndex, squareToWorldXY, worldXYToSquare, Move, CHESSBOARD_SQUARES } from "../atomic-chess/atomicChessData";
+import { AtomicChess } from "../atomic-chess/AtomicChessLogic";
+import { getAllValidMovesFrom, getValidStandardCapturesFrom } from "../atomic-chess/validator";
 
 // Game scene class definition
 export class Game extends Scene {

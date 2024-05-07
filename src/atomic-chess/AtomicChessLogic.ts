@@ -1,10 +1,10 @@
 import { GameObjects } from "phaser";
 import { PIECE_TO_TEXTURE_FRAME } from "../assets";
-import { ChessPiece } from "../sprites/ChessPieceSprite";
 import { Square, FEN, Move, MoveType, GameOverType, Color, getEnemyColor, PromotablePiece, PIECE_TO_TYPE, PIECE_TO_COLOR, PieceType, SQUARE_TO_INDEX, gridIndexToSquare, Piece, Chessboard, CHESSBOARD_SQUARES } from "./atomicChessData";
-import { isValidStandardCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, canPromotePawnAt, isCheckMate, isStaleMate } from "./validator/atomicChessValidator";
-import { findKing, ChessActionLog, capture, standardMove, castleKingside, castleQueenside, enPassant } from "./validator/atomicChessboard";
+import { isValidStandardCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, canPromotePawnAt, isCheckMate, isStaleMate } from "./validator";
+import { findKing, ChessActionLog, capture, standardMove, castleKingside, castleQueenside, enPassant } from "./chessboard";
 import { Game as GameScene } from "../scenes/Game";
+import { ChessPiece } from "./ChessPieceSprite";
 
 export class AtomicChess {
   sprites: Record<Square, ChessPiece | null>;

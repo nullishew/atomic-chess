@@ -1,5 +1,5 @@
-import { FEN, Square, CastleType, Chessboard, PIECE_TO_TYPE, PieceType, PIECE_TO_COLOR, Color, Move, getEnemyColor, Piece, SQUARE_TO_INDEX, PIECE_CAPTURE_PATTERNS, gridIndexToSquare, MoveType, PIECE_MOVE_PATTERNS, CASTLE_MOVES } from "../atomicChessData";
-import { findKing, isAdjacent, capture, enPassant, castleKingside, castleQueenside, standardMove } from "./atomicChessboard";
+import { FEN, Square, CastleType, Chessboard, PIECE_TO_TYPE, PieceType, PIECE_TO_COLOR, Color, Move, getEnemyColor, Piece, SQUARE_TO_INDEX, PIECE_CAPTURE_PATTERNS, gridIndexToSquare, MoveType, PIECE_MOVE_PATTERNS, CASTLE_MOVES } from "./atomicChessData";
+import { findKing, isAdjacent, capture, enPassant, castleKingside, castleQueenside, standardMove } from "./chessboard";
 
 export function getAllValidMovesFrom(gameState: FEN, from: Square): Square[] {
   return [
