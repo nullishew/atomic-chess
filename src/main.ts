@@ -4,7 +4,7 @@ import { Game, Types } from "phaser";
 
 const config: Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: 256,
+  width: 192,
   height: 192,
   parent: 'game-container',
   backgroundColor: '#000000',

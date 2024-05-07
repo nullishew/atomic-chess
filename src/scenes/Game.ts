@@ -194,7 +194,7 @@ function createGameOverMenu(game: Scene, text: string, image: GameObjects.Image 
   const background = game.add.graphics()
     .fillStyle(0xfffffff, .75)
     .fillRect(-64, -64, 128, 128);
-  const textElem = game.add.text(0, -32, text, { color: 'black', fontFamily: 'Pixelify Sans', fontSize: 24 })
+  const textElem = game.add.text(0, -32, text, { color: 'black', fontFamily: 'Super Dream', fontSize: 24 })
     .setResolution(32)
     .setOrigin(.5);
   const button = game.add.image(0, 32, ASSETS.RETRY.key)
