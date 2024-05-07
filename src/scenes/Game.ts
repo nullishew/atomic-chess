@@ -1,35 +1,28 @@
-import { Scene, Tilemaps, GameObjects, Sound } from "phaser";
+import { Scene, GameObjects } from "phaser";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { chessTileSize } from "../main";
-import { Square, Color, PIECE_TO_COLOR, MoveType, GameOverType, PromotablePiece, INITIAL_GAMESTATE, squareToTileIndex, squareToWorldXY, worldXYToSquare, Move, CHESSBOARD_SQUARES } from "../atomic-chess/atomicChessData";
-import { AtomicChess } from "../atomic-chess/AtomicChessLogic";
-import { getAllValidMovesFrom, getValidStandardCapturesFrom } from "../atomic-chess/validator";
+import { Square, Color, PIECE_TO_COLOR, MoveType, GameOverType, PromotablePiece, INITIAL_GAMESTATE, worldXYToSquare, Move, CastleType } from "../atomic-chess/atomicChess";
+import { AtomicChessLogic } from "../atomic-chess/AtomicChessLogic";
+import { getValidCastlesFrom, getValidDoubleMovesFrom, getValidEnPassantsFrom, getValidStandardCapturesFrom, getValidStandardMovesFrom } from "../atomic-chess/validator";
+import { AtomicChessGUI } from "../atomic-chess/AtomicChessGUI";
 
 // Game scene class definition
 export class Game extends Scene {
-  chessboardTilemap: Tilemaps.Tilemap;
-
-  pointerTileMarker: GameObjects.Graphics;
-  selectedTileMarker: GameObjects.Graphics;
-
-  actionMarkers: {
-    container: GameObjects.Container,
-    moveMarkers: Record<Square, GameObjects.Graphics>,
-    captureMarkers: Record<Square, GameObjects.Graphics>,
-  };
-
   promotionMenus: Record<Color, GameObjects.Container>;
   gameOverMenus: Record<GameOverType, GameObjects.Container>;
 
-  explosionSound: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
-  explosionParticles: GameObjects.Particles.ParticleEmitter;
+  chessLogic: AtomicChessLogic;
+  chessGUI: AtomicChessGUI;
 
-  chess: AtomicChess;
   selectedSquare: Square | null;
   promotionSquare: Square;
   isGameOver: boolean;
 
   pointerSquare: Square | null;
+
+  get chessboardTilemap() {
+    return this.chessGUI.chessboardTilemap;
+  }
 
   constructor() {
     super('Game'); // Call to superclass constructor with scene key
@@ -48,23 +41,13 @@ export class Game extends Scene {
     const { centerX, centerY } = cam;
     cam.setScroll(-centerX, -centerY);
 
-    // Create chessboard ui
-    this.chessboardTilemap = createChessboard(this, chessTileSize);
+    // Initialize atomic chess gui
+    this.chessGUI = new AtomicChessGUI(this, chessTileSize);
 
     // Initialize atomic chess game
-    this.chess = new AtomicChess(INITIAL_GAMESTATE, this, this.add.container());
+    this.chessLogic = new AtomicChessLogic(INITIAL_GAMESTATE, this);
 
-    this.addIndicators();
-
-    this.explosionParticles = this.add.particles(0, 0, ASSETS.PARTICLE.key, {
-      speed: { min: 300, max: 600 },
-      scale: { start: .6, end: 0, random: true },
-      alpha: { start: 1, end: 0 },
-      lifespan: { min: 300, max: 600 },
-      emitting: false,
-    });
-
-    this.explosionSound = this.sound.add(ASSETS.EXPLOSION.key);
+    
 
     this.createMenus();
 
@@ -87,13 +70,6 @@ export class Game extends Scene {
     }
   }
 
-  // Add UI indicators
-  addIndicators() {
-    this.pointerTileMarker = createTileMarker(this, chessTileSize, chessTileSize * .1, 0xffffff, 1).setVisible(false);
-    this.selectedTileMarker = createTileMarker(this, chessTileSize, chessTileSize * .1, 0xffffff, 1).setVisible(false);
-    this.actionMarkers = createActionMarkers(this, this.add.container().setVisible(false));
-  }
-
   // Setup mouse input handlers
   setupMouseInput() {
     // Add pointer input to keep track of the square the pointer is currently hovering over
@@ -105,15 +81,7 @@ export class Game extends Scene {
     // Add pointer input to indicate the square the pointer is currently hovering over
     this.input.on('pointermove', () => {
       if (this.isGameOver) return;
-      if (!this.pointerTileMarker) return;
-      const { pointerSquare } = this;
-      if (!pointerSquare) {
-        this.pointerTileMarker.visible = false;
-        return;
-      }
-      const { x, y } = squareToWorldXY(pointerSquare, this.chessboardTilemap);
-      this.pointerTileMarker.setPosition(x, y)
-        .setVisible(true);
+      this.chessGUI.pointerSquare(this.pointerSquare);
     });
 
     // Add pointer input to select squares and make moves
@@ -124,24 +92,28 @@ export class Game extends Scene {
         this.deselectSquare();
         return;
       }
-      const { activeColor, board } = this.chess.data;
+      const { activeColor, board } = this.chessLogic.data;
       const piece = board[pointerSquare];
       if (piece && PIECE_TO_COLOR[piece] == activeColor) {
         this.selectSquare(pointerSquare);
         return;
       }
       if (!this.selectedSquare) return;
-      this.tryMove({ from: this.selectedSquare, to: pointerSquare });
+      const square = this.selectedSquare;
+      this.deselectSquare();
+      this.tryMove({ from: square, to: pointerSquare });
     });
   }
 
   // Attempt to make a move
   tryMove(move: Move) {
     const { to } = move;
-    this.deselectSquare();
-    const { activeColor } = this.chess.data;
-    const moveType = this.chess.tryMove(move);
-    if (!moveType) return;
+    const { activeColor } = this.chessLogic.data;
+    const response = this.chessLogic.tryMove(move);
+    console.table(response);
+    if (!response) return;
+    this.chessGUI.update(response);
+    const { moveType } = response;
     if (moveType == MoveType.PROMOTION) {
       this.promotionSquare = to;
       this.promotionMenus[activeColor].visible = true;
@@ -151,7 +123,7 @@ export class Game extends Scene {
 
   // Check for game over condition
   tryGameOver() {
-    const gameOverType = this.chess.tryGameOver();
+    const gameOverType = this.chessLogic.tryGameOver();
     if (!gameOverType) return;
     this.isGameOver = true;
     const menu = this.gameOverMenus[gameOverType];
@@ -169,107 +141,29 @@ export class Game extends Scene {
   // Select a square
   selectSquare(square: Square) {
     this.selectedSquare = square;
-    const { x, y } = squareToWorldXY(square, this.chessboardTilemap);
-    this.selectedTileMarker.setPosition(x, y)
-      .setVisible(true);
-    this.showValidMoves(square);
+    this.chessGUI.selectSquare(square);
+
+    // show valid moves
+    this.chessGUI.hideActionIndicators();
+    this.chessGUI.indicateCapturableSquares(getValidStandardCapturesFrom(this.chessLogic.data, square))
+    this.chessGUI.indicateMovableSquares([
+      ...getValidCastlesFrom(this.chessLogic.data, CastleType.KINGSIDE, square),
+      ...getValidCastlesFrom(this.chessLogic.data, CastleType.QUEENSIDE, square),
+      ...getValidDoubleMovesFrom(this.chessLogic.data, square),
+      ...getValidEnPassantsFrom(this.chessLogic.data, square),
+      ...getValidStandardMovesFrom(this.chessLogic.data, square)
+    ]);
   }
 
   // Deselect a square
   deselectSquare() {
-    this.hideActionMarkers();
-    this.selectedTileMarker.visible = false;
     this.selectedSquare = null;
+    this.chessGUI.deselectSquare();
+    this.chessGUI.hideActionIndicators();
   }
-
-  // Show valid moves from a square
-  showValidMoves(from: Square) {
-    this.hideActionMarkers();
-    this.actionMarkers.container.visible = true;
-    getAllValidMovesFrom(this.chess.data, from).forEach(to => this.actionMarkers.moveMarkers[to].visible = true);
-    getValidStandardCapturesFrom(this.chess.data, from).forEach(to => {
-      this.actionMarkers.moveMarkers[to].visible = false;
-      this.actionMarkers.captureMarkers[to].visible = true;
-    });
-  }
-
-  // Hide action markers
-  hideActionMarkers() {
-    this.actionMarkers.container.visible = false;
-    CHESSBOARD_SQUARES.forEach(square => {
-      this.actionMarkers.moveMarkers[square].visible = false;
-      this.actionMarkers.captureMarkers[square].visible = false;
-    });
-  }
-
 }
 
-// Function to create chessboard tilemap
-function createChessboard(scene: Scene, tileSize: number): Tilemaps.Tilemap {
-  const data = [
-    [0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0],
-    [0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0],
-    [0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0],
-    [0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0]
-  ];
-  const map = scene.make.tilemap({ data: data, tileWidth: tileSize, tileHeight: tileSize });
-  const tileset = map.addTilesetImage(ASSETS.CHESSBOARD_TILES.key) as Tilemaps.Tileset;
-  const layer = map.createLayer(0, tileset, 0, 0) as Tilemaps.TilemapLayer;
-  const { x, y } = (layer.getBottomRight() as Phaser.Math.Vector2).scale(-.5);
-  layer.setPosition(x, y);
-  return map;
-}
 
-// Function to create a tile marker
-function createTileMarker(scene: Scene, tileSize: number, lineWidth: number, color: number, alpha: number): GameObjects.Graphics {
-  return scene.add.graphics()
-    .lineStyle(lineWidth, color, alpha)
-    .strokeRect(0, 0, tileSize, tileSize);
-}
-
-// Function to create a move marker
-function createMoveMarker(scene: Game, x: number, y: number, size: number): GameObjects.Graphics {
-  return scene.add.graphics()
-    .fillStyle(0x000000, .3)
-    .fillCircle(x, y, size)
-    .setActive(false);
-}
-
-// Function to create a capture marker
-function createCaptureMarker(scene: Game, x: number, y: number, lineWidth: number, size: number): GameObjects.Graphics {
-  return scene.add.graphics()
-    .lineStyle(lineWidth, 0x000000, .3)
-    .strokeCircle(x, y, size)
-    .setActive(false);
-}
-
-// Function to create action markers
-function createActionMarkers(scene: Game, container: GameObjects.Container): {
-  container: GameObjects.Container,
-  moveMarkers: Record<Square, GameObjects.Graphics>,
-  captureMarkers: Record<Square, GameObjects.Graphics>,
-} {
-  const moveMarkers: Record<Square, GameObjects.Graphics> = {} as Record<Square, GameObjects.Graphics>;
-  const captureMarkers: Record<Square, GameObjects.Graphics> = {} as Record<Square, GameObjects.Graphics>;
-  CHESSBOARD_SQUARES.forEach(square => {
-    let { x, y } = squareToWorldXY(square, scene.chessboardTilemap);
-    x += .5 * chessTileSize;
-    y += .5 * chessTileSize;
-    moveMarkers[square] = createMoveMarker(scene, x, y, .1 * chessTileSize);
-    captureMarkers[square] = createCaptureMarker(scene, x, y, .125 * chessTileSize, .4375 * chessTileSize);
-    container.add(moveMarkers[square]);
-    container.add(captureMarkers[square]);
-  });
-  return {
-    container: container,
-    moveMarkers: moveMarkers,
-    captureMarkers: captureMarkers,
-  };
-}
 
 // Function to create promotion menu
 function createPromotionMenu(game: Game, color: Color): GameObjects.Container {
@@ -286,7 +180,8 @@ function createPromotionMenu(game: Game, color: Color): GameObjects.Container {
       .setInteractive({ useHandCursor: true })
       .on('pointerdown', () => {
         container.visible = false;
-        game.chess.promote(game.promotionSquare, piece);
+        game.chessLogic.promote(game.promotionSquare, piece);
+        game.chessGUI.promote(game.promotionSquare, piece);
         game.tryGameOver();
       })
   );

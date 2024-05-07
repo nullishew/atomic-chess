@@ -6,13 +6,13 @@ export enum Color {
 
 // Enumerate the possible types of moves
 export enum MoveType {
-  CAPTURE = 'c',
-  DOUBLE = 'd',
-  EN_PASSANT = 'e',
-  KINGSIDE_CASTLE = 'k',
-  PROMOTION = 'p',
-  QUEENSIDE_CASTLE = 'q',
-  STANDARD_MOVE = 's',
+  CAPTURE = 'stnadard capture',
+  DOUBLE = 'pawn double move',
+  EN_PASSANT = 'en passant',
+  KINGSIDE_CASTLE = 'kingside castle',
+  PROMOTION = 'promotion',
+  QUEENSIDE_CASTLE = 'queenside castle',
+  STANDARD_MOVE = 'standard move',
 }
 
 // Enumerate the possible types of castling
@@ -305,11 +305,6 @@ export function gridIndexToSquare([r, f]: Pos): Square | null {
 
 export function squareIndexToSquare([r, f]: SquareIndex): Square {
   return FILES[f] + RANKS[r] as Square;
-}
-
-export function squareToTileIndex(square: Square): Pos {
-  const [r, c] = SQUARE_TO_INDEX[square];
-  return [7 - r, c];
 }
 
 export function squareToWorldXY(square: Square, tilemap: Phaser.Tilemaps.Tilemap): Phaser.Math.Vector2 {

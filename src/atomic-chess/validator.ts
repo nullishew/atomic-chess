@@ -1,5 +1,5 @@
-import { FEN, Square, CastleType, Chessboard, PIECE_TO_TYPE, PieceType, PIECE_TO_COLOR, Color, Move, getEnemyColor, Piece, SQUARE_TO_INDEX, PIECE_CAPTURE_PATTERNS, gridIndexToSquare, MoveType, PIECE_MOVE_PATTERNS, CASTLE_MOVES } from "./atomicChessData";
-import { findKing, isAdjacent, capture, enPassant, castleKingside, castleQueenside, standardMove } from "./chessboard";
+import { FEN, Square, CastleType, Chessboard, PIECE_TO_TYPE, PieceType, PIECE_TO_COLOR, Color, Move, getEnemyColor, Piece, SQUARE_TO_INDEX, PIECE_CAPTURE_PATTERNS, gridIndexToSquare, MoveType, PIECE_MOVE_PATTERNS, CASTLE_MOVES } from "./atomicChess";
+import { findKing, isAdjacent, capture, enPassant, castleKingside, castleQueenside, standardMove, moveDouble } from "./chessboard";
 
 export function getAllValidMovesFrom(gameState: FEN, from: Square): Square[] {
   return [
@@ -105,6 +105,9 @@ export function isKingSafeAfterMove(board: Chessboard, activeColor: Color, move:
       break;
     case MoveType.QUEENSIDE_CASTLE:
       ({ result } = castleQueenside(board, activeColor));
+      break;
+    case MoveType.DOUBLE:
+      ({ result } = moveDouble(board, move));
       break;
     default:
       ({ result } = standardMove(board, move));

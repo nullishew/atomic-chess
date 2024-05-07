@@ -1,24 +1,24 @@
 import { GameObjects } from "phaser";
 import { ASSETS } from "../assets";
-import { Game } from "../scenes/Game";
-import { Square, squareToWorldXY } from "../atomic-chess/atomicChessData";
+import { Square, squareToWorldXY } from "./atomicChess";
+import { AtomicChessGUI } from "./AtomicChessGUI";
 
 export class ChessPiece extends GameObjects.Sprite {
   square: Square;
-  game: Game;
+  gui: AtomicChessGUI;
 
-  constructor(game: Game, frame: number, square: Square) {
-    const {x, y} = squareToWorldXY(square, game.chessboardTilemap);
-    super(game, x, y, ASSETS.CHESS_PIECES.key, frame);
+  constructor(gui: AtomicChessGUI, frame: number, square: Square) {
+    const {x, y} = squareToWorldXY(square, gui.chessboardTilemap);
+    super(gui.scene, x, y, ASSETS.CHESS_PIECES.key, frame);
     this.square = square;
     this.setOrigin(0);
-    this.game = game;
+    this.gui = gui;
   }
 
   move(square: Square) {
     this.square = square;
-    const {x, y} = squareToWorldXY(square, this.game.chessboardTilemap);
-    const tween = this.game.tweens.add({
+    const {x, y} = squareToWorldXY(square, this.gui.chessboardTilemap);
+    const tween = this.gui.scene.tweens.add({
       targets: this,
       x: x,
       y: y,
@@ -31,8 +31,8 @@ export class ChessPiece extends GameObjects.Sprite {
   }
 
   explode() {
-    const {x, y} = squareToWorldXY(this.square, this.game.chessboardTilemap);
-    const tween = this.game.tweens.add({
+    const {x, y} = squareToWorldXY(this.square, this.gui.chessboardTilemap);
+    const tween = this.gui.scene.tweens.add({
       targets: this,
       x: x,
       y: y,
@@ -40,9 +40,9 @@ export class ChessPiece extends GameObjects.Sprite {
       duration: 100,
     });
     tween.on('complete', () => {
-      const { explosionParticles, cameras, explosionSound } = this.game;
+      const { explosionParticles, camera, explosionSound } = this.gui;
       explosionParticles.explode(50, this.x, this.y);
-      cameras.main.shake(500, .01);
+      camera.shake(500, .01);
       explosionSound.play();
       this.setPosition(x, y);
       this.destroy();

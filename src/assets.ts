@@ -1,4 +1,4 @@
-import { Piece } from "./atomic-chess/atomicChessData";
+import { Piece } from "./atomic-chess/atomicChess";
 
 interface Asset {
   key: string,

@@ -1,49 +1,28 @@
-import { GameObjects } from "phaser";
-import { PIECE_TO_TEXTURE_FRAME } from "../assets";
-import { Square, FEN, Move, MoveType, GameOverType, Color, getEnemyColor, PromotablePiece, PIECE_TO_TYPE, PIECE_TO_COLOR, PieceType, SQUARE_TO_INDEX, gridIndexToSquare, Piece, Chessboard, CHESSBOARD_SQUARES } from "./atomicChessData";
-import { isValidStandardCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, canPromotePawnAt, isCheckMate, isStaleMate } from "./validator";
-import { findKing, ChessActionLog, capture, standardMove, castleKingside, castleQueenside, enPassant } from "./chessboard";
+import { Square, FEN, Move, MoveType, GameOverType, Color, getEnemyColor, PromotablePiece, SQUARE_TO_INDEX, gridIndexToSquare, PIECE_TO_COLOR } from "./atomicChess";
+import { isValidStandardCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, isCheckMate, isStaleMate } from "./validator";
+import { findKing, AtomicChessResponse, capture, standardMove, castleKingside, castleQueenside, enPassant, moveDouble } from "./chessboard";
 import { Game as GameScene } from "../scenes/Game";
-import { ChessPiece } from "./ChessPieceSprite";
 
-export class AtomicChess {
-  sprites: Record<Square, ChessPiece | null>;
+export type test = AtomicChessResponse;
+
+export class AtomicChessLogic {
   data: FEN;
   game: GameScene;
-  spriteContainer: GameObjects.Container
 
-  constructor(data: FEN, game: GameScene, spriteContainer: GameObjects.Container) {
+  constructor(data: FEN, game: GameScene) {
     this.data = structuredClone(data);
     this.game = game;
-    this.spriteContainer = spriteContainer;
-    this.sprites = createChessPieceSprites(game, spriteContainer, data.board);
   }
 
-  tryMove(move: Move): MoveType | null {
-    if (isValidStandardCapture(this.data, move)) {
-      this.capture(move);
-      return MoveType.CAPTURE;
-    }
-    if (isValidDoubleMove(this.data, move)) {
-      this.moveDouble(move);
-      return MoveType.DOUBLE;
-    }
-    if (isValidEnPassant(this.data, move)) {
-      this.enPassant(move);
-      return MoveType.EN_PASSANT;
-    }
-    if (isValidKingsideCastle(this.data, move)) {
-      this.castleKingside(this.data.activeColor);
-      return MoveType.KINGSIDE_CASTLE;
-    }
-    if (isValidQueensideCastle(this.data, move)) {
-      this.castleQueenside(this.data.activeColor);
-      return MoveType.QUEENSIDE_CASTLE;
-    }
-    if (isValidStandardMove(this.data, move)) {
-      this.moveStandard(move);
-      return canPromotePawnAt(this.data.board, move.to) ? MoveType.PROMOTION : MoveType.STANDARD_MOVE;
-    }
+  tryMove(move: Move): test | null {
+    const {data} = this;
+    const {board, activeColor} = data;
+    if (isValidStandardCapture(data, move)) return this.update(capture(board, move));
+    if (isValidDoubleMove(data, move)) return this.update(moveDouble(board, move));
+    if (isValidEnPassant(data, move)) return this.update(enPassant(board, move));
+    if (isValidKingsideCastle(data, move)) return this.update(castleKingside(board, activeColor));
+    if (isValidQueensideCastle(data, move)) return this.update(castleQueenside(board, activeColor));
+    if (isValidStandardMove(data, move)) return this.update(standardMove(this.data.board, move));
     return null;
   }
 
@@ -80,140 +59,75 @@ export class AtomicChess {
     this.data.enPassantTargets = [];
   }
 
-  explosionUpdate = (square: Square) => {
-    this.sprites[square]?.explode();
-    this.sprites[square] = null;
-  }
 
-  moveUpdate = ({from, to}: Move) => {
-    // console.log('fdfsdfsd');
-    this.sprites[from]?.move(to);
-    this.sprites[to] = this.sprites[from];
-    this.sprites[from] = null;
-  }
+  update(response: AtomicChessResponse): AtomicChessResponse {
+    const { moves, explosions, result, moveType } = response;
+    console.log(moveType);
+    this.switchTurn();
+    if (moveType == MoveType.DOUBLE) {
+      const { from, to } = moves[0];
+      const [r1, c] = SQUARE_TO_INDEX[from];
+      const r2 = SQUARE_TO_INDEX[to][0];
+      this.data.enPassantTargets.push(gridIndexToSquare([(r1 + r2) / 2, c]) as Square);
+    }
+    const { board, hasCastlingRights } = this.data;
+    for (const { from } of moves) {
+      const piece = board[from];
+      switch (piece) {
+        case 'P':
+        case 'p':
+          this.data.halfMoves = 0;
+          break;
+        case 'k':
+        case 'K':
+          hasCastlingRights[PIECE_TO_COLOR[piece]] = { kingside: false, queenside: false };
+          break;
+        case 'r':
+          if (from == 'a8') {
+            hasCastlingRights.black.queenside = false;
+          } else if (from == 'h8') {
+            hasCastlingRights.black.kingside = false;
+          }
+          break;
+        case 'R':
+          if (from == 'a1') {
+            hasCastlingRights.white.queenside = false;
+          } else if (from == 'h1') {
+            hasCastlingRights.white.kingside = false;
+          }
+          break;
+      }
+    }
+    if (explosions.length) {
+      this.data.halfMoves = 0;
+      for (const square of explosions) {
+        const piece = board[square];
+        switch (piece) {
+          case 'r':
+            if (square == 'a8') {
+              hasCastlingRights.black.queenside = false;
+            } else if (square == 'h8') {
+              hasCastlingRights.black.kingside = false;
+            }
+            break;
+          case 'R':
+            if (square == 'a1') {
+              hasCastlingRights.white.queenside = false;
+            } else if (square == 'h1') {
+              hasCastlingRights.white.kingside = false;
+            }
+            break;
+        }
+      }
+    }
 
-  update({ moves, explosions, result }: ChessActionLog) {
     this.data.board = result;
-    explosions.forEach(this.explosionUpdate);
-    moves.forEach(this.moveUpdate);
-    explosions.forEach(this.explosionUpdate);
+    return response;
   }
 
   promote(square: Square, piece: PromotablePiece) {
     console.log(`pawn promotion at ${square} to ${piece}`);
     this.data.board[square] = piece;
-    this.sprites[square]?.destroy();
-    const sprite = createChessPieceSprite(this.game, piece, square);
-    this.spriteContainer.add(sprite);
-    this.sprites[square] = sprite;
   }
 
-  capture(move: Move) {
-    console.log('standard capture');
-    this.switchTurn();
-    this.data.halfMoves = 0;
-    const { to } = move;
-    const capturedPiece = this.data.board[to];
-    const { black, white } = this.data.hasCastlingRights;
-    switch (capturedPiece) {
-      case 'R':
-        if (to == 'a1') {
-          white.queenside = false;
-        } else if (to == 'h1') {
-          white.kingside = false;
-        }
-        break;
-      case 'r':
-        if (to == 'a8') {
-          black.queenside = false;
-        } else if (to == 'h8') {
-          black.kingside = false;
-        }
-        break;
-    }
-    this.update(capture(this.data.board, move));
-  }
-
-  moveStandard(move: Move) {
-    console.log('standard move');
-    this.switchTurn();
-    const { from } = move;
-    const piece = this.data.board[from];
-    if (!piece) return;
-    const type = PIECE_TO_TYPE[piece];
-    const color = PIECE_TO_COLOR[piece];
-    switch (type) {
-      case PieceType.PAWN:
-        this.data.halfMoves = 0;
-        break;
-      case PieceType.KING:
-        this.data.hasCastlingRights[color] = { kingside: false, queenside: false };
-        break;
-      case PieceType.ROOK:
-        const { black, white } = this.data.hasCastlingRights;
-        if (color == Color.WHITE) {
-          if (from == 'a1') {
-            white.queenside = false;
-          } else if (from == 'h1') {
-            white.kingside = false;
-          }
-        } else {
-          if (from == 'a8') {
-            black.queenside = false;
-          } else if (from == 'h8') {
-            black.kingside = false;
-          }
-        }
-        break;
-    }
-    this.update(standardMove(this.data.board, move));
-  }
-
-  moveDouble(move: Move) {
-    this.moveStandard(move);
-    const { from, to } = move;
-    const [r1, c] = SQUARE_TO_INDEX[from];
-    const r2 = SQUARE_TO_INDEX[to][0];
-    this.data.enPassantTargets.push(gridIndexToSquare([(r1 + r2) / 2, c]) as Square);
-  }
-
-  castleKingside(activeColor: Color) {
-    console.log('kingside castle');
-    this.switchTurn();
-    this.data.hasCastlingRights[activeColor] = { kingside: false, queenside: false };
-    this.update(castleKingside(this.data.board, activeColor));
-  }
-
-  castleQueenside(activeColor: Color) {
-    console.log('queenside castle');
-    this.switchTurn();
-    this.data.hasCastlingRights[activeColor] = { kingside: false, queenside: false };
-    this.update(castleQueenside(this.data.board, activeColor));
-  }
-
-  enPassant(move: Move) {
-    console.log('en passant');
-    this.switchTurn();
-    this.data.halfMoves = 0;
-    this.update(enPassant(this.data.board, move));
-  }
-}
-
-function createChessPieceSprite(scene: GameScene, piece: Piece, square: Square): ChessPiece {
-  return scene.add.existing(new ChessPiece(scene, PIECE_TO_TEXTURE_FRAME[piece], square));
-}
-
-function createChessPieceSprites(scene: GameScene, container: GameObjects.Container, board: Chessboard): Record<Square, ChessPiece | null> {
-  const sprites: Record<Square, ChessPiece | null> = {} as Record<Square, ChessPiece | null>;
-  for (const square of CHESSBOARD_SQUARES) {
-    const piece = board[square];
-    if (!piece) {
-      sprites[square] = null;
-      continue;
-    }
-    const sprite = createChessPieceSprite(scene, piece, square);
-    sprites[square] = sprite;
-    container.add(sprite);
-  }
-  return sprites;
 }
