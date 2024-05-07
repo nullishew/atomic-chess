@@ -1,5 +1,4 @@
-import { CHESSBOARD_SQUARES, gridIndexToSquare } from "../atomicChessData";
-import { Square, SQUARE_TO_INDEX, Move, Chessboard, Piece, Color, PIECE_TO_TYPE, PieceType, CASTLE_MOVES, CastleType } from "../atomicChessData";
+import { Move, Square, Chessboard, Piece, CHESSBOARD_SQUARES, Color, SQUARE_TO_INDEX, gridIndexToSquare, CastleType, PIECE_TO_TYPE, PieceType, CASTLE_MOVES } from "../atomicChessData";
 
 // Defines a structure for logging chess actions
 export interface ChessActionLog {

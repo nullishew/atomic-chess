@@ -1,12 +1,10 @@
 import { GameObjects } from "phaser";
-import { Game as GameScene } from "../scenes/Game";
-import { ChessPiece } from "../sprites/ChessPieceSprite";
 import { PIECE_TO_TEXTURE_FRAME } from "../assets";
-import { Square, FEN, MoveType, Color, SQUARE_TO_INDEX, PIECE_TO_TYPE, PIECE_TO_COLOR, PieceType, Piece, Chessboard, Move, GameOverType, PromotablePiece } from "./atomicChessData";
+import { ChessPiece } from "../sprites/ChessPieceSprite";
+import { Square, FEN, Move, MoveType, GameOverType, Color, getEnemyColor, PromotablePiece, PIECE_TO_TYPE, PIECE_TO_COLOR, PieceType, SQUARE_TO_INDEX, gridIndexToSquare, Piece, Chessboard, CHESSBOARD_SQUARES } from "./atomicChessData";
 import { isValidStandardCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, canPromotePawnAt, isCheckMate, isStaleMate } from "./validator/atomicChessValidator";
-import { getEnemyColor } from "./atomicChessData";
 import { findKing, ChessActionLog, capture, standardMove, castleKingside, castleQueenside, enPassant } from "./validator/atomicChessboard";
-import { gridIndexToSquare } from "./atomicChessData";
+import { Game as GameScene } from "../scenes/Game";
 
 export class AtomicChess {
   sprites: Record<Square, ChessPiece | null>;
@@ -82,20 +80,23 @@ export class AtomicChess {
     this.data.enPassantTargets = [];
   }
 
+  explosionUpdate = (square: Square) => {
+    this.sprites[square]?.explode();
+    this.sprites[square] = null;
+  }
+
+  moveUpdate = ({from, to}: Move) => {
+    // console.log('fdfsdfsd');
+    this.sprites[from]?.move(to);
+    this.sprites[to] = this.sprites[from];
+    this.sprites[from] = null;
+  }
+
   update({ moves, explosions, result }: ChessActionLog) {
     this.data.board = result;
-    for (const square of explosions) {
-      this.sprites[square]?.explode();
-    }
-    for (const { from, to } of moves) {
-      this.sprites[from]?.move(to);
-      this.sprites[to] = this.sprites[from];
-      this.sprites[from] = null;
-    }
-    for (const square of explosions) {
-      this.sprites[square]?.explode();
-      this.sprites[square] = null;
-    }
+    explosions.forEach(this.explosionUpdate);
+    moves.forEach(this.moveUpdate);
+    explosions.forEach(this.explosionUpdate);
   }
 
   promote(square: Square, piece: PromotablePiece) {
@@ -111,7 +112,7 @@ export class AtomicChess {
     console.log('standard capture');
     this.switchTurn();
     this.data.halfMoves = 0;
-    const {to} = move;
+    const { to } = move;
     const capturedPiece = this.data.board[to];
     const { black, white } = this.data.hasCastlingRights;
     switch (capturedPiece) {
@@ -195,24 +196,24 @@ export class AtomicChess {
     this.switchTurn();
     this.data.halfMoves = 0;
     this.update(enPassant(this.data.board, move));
-
   }
 }
 
-function createChessPieceSprite(scene: GameScene, piece: Piece, square: Square) {
+function createChessPieceSprite(scene: GameScene, piece: Piece, square: Square): ChessPiece {
   return scene.add.existing(new ChessPiece(scene, PIECE_TO_TEXTURE_FRAME[piece], square));
 }
 
-function createChessPieceSprites(scene: GameScene, container: GameObjects.Container, board: Chessboard) {
-  const chessboardSprites: Record<Square, ChessPiece | null> = {} as Record<Square, ChessPiece | null>;
-  for (const [square, piece] of Object.entries(board) as [Square, Piece | null][]) {
+function createChessPieceSprites(scene: GameScene, container: GameObjects.Container, board: Chessboard): Record<Square, ChessPiece | null> {
+  const sprites: Record<Square, ChessPiece | null> = {} as Record<Square, ChessPiece | null>;
+  for (const square of CHESSBOARD_SQUARES) {
+    const piece = board[square];
     if (!piece) {
-      chessboardSprites[square] = null;
+      sprites[square] = null;
       continue;
     }
     const sprite = createChessPieceSprite(scene, piece, square);
-    chessboardSprites[square] = sprite;
+    sprites[square] = sprite;
     container.add(sprite);
   }
-  return chessboardSprites;
+  return sprites;
 }

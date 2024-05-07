@@ -5,6 +5,7 @@ import { Square, Color, PIECE_TO_COLOR, MoveType, GameOverType, PromotablePiece,
 import { AtomicChess } from "../chess/AtomicChess";
 import { getAllValidMovesFrom, getValidStandardCapturesFrom } from "../chess/validator/atomicChessValidator";
 
+// Game scene class definition
 export class Game extends Scene {
   chessboardTilemap: Tilemaps.Tilemap;
 
@@ -31,30 +32,29 @@ export class Game extends Scene {
   pointerSquare: Square | null;
 
   constructor() {
-    super('Game');
+    super('Game'); // Call to superclass constructor with scene key
   }
 
+  // Scene creation method
   create() {
+    // Fade in camera
     this.cameras.main.fadeIn(3000, 0, 0, 0);
 
+    // Initialize game over status
     this.isGameOver = false;
 
+    // Center game view
     const cam = this.cameras.main;
     const { centerX, centerY } = cam;
     cam.setScroll(-centerX, -centerY);
 
-    this.explosionSound = this.sound.add(ASSETS.EXPLOSION.key);
-
+    // Create chessboard ui
     this.chessboardTilemap = createChessboard(this, chessTileSize);
 
+    // Initialize atomic chess game
     this.chess = new AtomicChess(INITIAL_GAMESTATE, this, this.add.container());
 
-    this.pointerTileMarker = createTileMarker(this, chessTileSize, chessTileSize * .1, 0xffffff, 1).setVisible(false);
-
-    this.selectedTileMarker = createTileMarker(this, chessTileSize, chessTileSize * .1, 0xffffff, 1).setVisible(false);
-
-    this.actionMarkers = createActionMarkers(this, this.add.container().setVisible(false));
-
+    this.addIndicators();
 
     this.explosionParticles = this.add.particles(0, 0, ASSETS.PARTICLE.key, {
       speed: { min: 300, max: 600 },
@@ -64,12 +64,15 @@ export class Game extends Scene {
       emitting: false,
     });
 
+    this.explosionSound = this.sound.add(ASSETS.EXPLOSION.key);
+
     this.createMenus();
 
     this.setupMouseInput();
 
   }
 
+  // Create promotion and game over menus
   createMenus() {
     this.promotionMenus = {
       [Color.WHITE]: createPromotionMenu(this, Color.WHITE).setVisible(false),
@@ -84,6 +87,14 @@ export class Game extends Scene {
     }
   }
 
+  // Add UI indicators
+  addIndicators() {
+    this.pointerTileMarker = createTileMarker(this, chessTileSize, chessTileSize * .1, 0xffffff, 1).setVisible(false);
+    this.selectedTileMarker = createTileMarker(this, chessTileSize, chessTileSize * .1, 0xffffff, 1).setVisible(false);
+    this.actionMarkers = createActionMarkers(this, this.add.container().setVisible(false));
+  }
+
+  // Setup mouse input handlers
   setupMouseInput() {
     // Add pointer input to keep track of the square the pointer is currently hovering over
     this.input.on('pointermove', () => {
@@ -124,6 +135,7 @@ export class Game extends Scene {
     });
   }
 
+  // Attempt to make a move
   tryMove(move: Move) {
     const { to } = move;
     this.deselectSquare();
@@ -137,6 +149,7 @@ export class Game extends Scene {
     this.tryGameOver();
   }
 
+  // Check for game over condition
   tryGameOver() {
     const gameOverType = this.chess.tryGameOver();
     if (!gameOverType) return;
@@ -153,6 +166,7 @@ export class Game extends Scene {
     });
   }
 
+  // Select a square
   selectSquare(square: Square) {
     this.selectedSquare = square;
     const { x, y } = squareToWorldXY(square, this.chessboardTilemap);
@@ -161,14 +175,16 @@ export class Game extends Scene {
     this.showValidMoves(square);
   }
 
+  // Deselect a square
   deselectSquare() {
-    this.hideMoveMarkers();
+    this.hideActionMarkers();
     this.selectedTileMarker.visible = false;
     this.selectedSquare = null;
   }
 
+  // Show valid moves from a square
   showValidMoves(from: Square) {
-    this.hideMoveMarkers();
+    this.hideActionMarkers();
     this.actionMarkers.container.visible = true;
     getAllValidMovesFrom(this.chess.data, from).forEach(to => this.actionMarkers.moveMarkers[to].visible = true);
     getValidStandardCapturesFrom(this.chess.data, from).forEach(to => {
@@ -177,7 +193,8 @@ export class Game extends Scene {
     });
   }
 
-  hideMoveMarkers() {
+  // Hide action markers
+  hideActionMarkers() {
     this.actionMarkers.container.visible = false;
     CHESSBOARD_SQUARES.forEach(square => {
       this.actionMarkers.moveMarkers[square].visible = false;
@@ -187,6 +204,7 @@ export class Game extends Scene {
 
 }
 
+// Function to create chessboard tilemap
 function createChessboard(scene: Scene, tileSize: number): Tilemaps.Tilemap {
   const data = [
     [0, 1, 0, 1, 0, 1, 0, 1],
@@ -206,12 +224,14 @@ function createChessboard(scene: Scene, tileSize: number): Tilemaps.Tilemap {
   return map;
 }
 
+// Function to create a tile marker
 function createTileMarker(scene: Scene, tileSize: number, lineWidth: number, color: number, alpha: number): GameObjects.Graphics {
   return scene.add.graphics()
     .lineStyle(lineWidth, color, alpha)
     .strokeRect(0, 0, tileSize, tileSize);
 }
 
+// Function to create a move marker
 function createMoveMarker(scene: Game, x: number, y: number, size: number): GameObjects.Graphics {
   return scene.add.graphics()
     .fillStyle(0x000000, .3)
@@ -219,6 +239,7 @@ function createMoveMarker(scene: Game, x: number, y: number, size: number): Game
     .setActive(false);
 }
 
+// Function to create a capture marker
 function createCaptureMarker(scene: Game, x: number, y: number, lineWidth: number, size: number): GameObjects.Graphics {
   return scene.add.graphics()
     .lineStyle(lineWidth, 0x000000, .3)
@@ -226,6 +247,7 @@ function createCaptureMarker(scene: Game, x: number, y: number, lineWidth: numbe
     .setActive(false);
 }
 
+// Function to create action markers
 function createActionMarkers(scene: Game, container: GameObjects.Container): {
   container: GameObjects.Container,
   moveMarkers: Record<Square, GameObjects.Graphics>,
@@ -249,6 +271,7 @@ function createActionMarkers(scene: Game, container: GameObjects.Container): {
   };
 }
 
+// Function to create promotion menu
 function createPromotionMenu(game: Game, color: Color): GameObjects.Container {
   const container = game.add.container(0, 0);
   const background = game.add.graphics()
@@ -270,29 +293,31 @@ function createPromotionMenu(game: Game, color: Color): GameObjects.Container {
   return container.add([background, ...buttons]);
 }
 
+// Function to create game over menu
 function createGameOverMenu(game: Scene, text: string, image: GameObjects.Image | null): GameObjects.Container {
+  const container = game.add.container(0, 0);
+  const background = game.add.graphics()
+    .fillStyle(0xfffffff, .75)
+    .fillRect(-64, -64, 128, 128);
+  const textElem = game.add.text(0, -32, text, { color: 'black', fontFamily: 'Pixelify Sans', fontSize: 24 })
+    .setResolution(32)
+    .setOrigin(.5);
   const button = game.add.image(0, 32, ASSETS.RETRY.key)
     .setScale(1)
     .setOrigin(.5)
     .setInteractive({ useHandCursor: true })
-    .on('pointerdown', () => {
-      button.removeAllListeners();
+    .once('pointerdown', () => {
       game.cameras.main.fadeOut(1000, 0, 0, 0);
       game.time.addEvent({
         delay: 1000,
         callback: () => game.scene.restart(),
       });
     });
-  const container = game.add.container(0, 0, [
-    game.add.graphics()
-      .fillStyle(0xfffffff, .75)
-      .fillRect(-64, -64, 128, 128),
-    game.add.text(0, -32, text, { color: 'black', fontFamily: 'Pixelify Sans', fontSize: 24 })
-      .setResolution(32)
-      .setOrigin(.5),
-    image ?? game.add.graphics(),
+  return container.add([
+    background,
+    textElem,
+    image ?? game.add.container(),
     button,
   ]);
-  return container;
 }
 
