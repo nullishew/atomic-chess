@@ -3,18 +3,16 @@ import { isValidStandardCapture, isValidDoubleMove, isValidEnPassant, isValidKin
 import { findKing, AtomicChessResponse, capture, standardMove, castleKingside, castleQueenside, enPassant, moveDouble } from "./chessboard";
 import { Game as GameScene } from "../scenes/Game";
 
-export type test = AtomicChessResponse;
-
 export class AtomicChessLogic {
   data: FEN;
   game: GameScene;
 
   constructor(data: FEN, game: GameScene) {
-    this.data = structuredClone(data);
+    this.data = data;
     this.game = game;
   }
 
-  tryMove(move: Move): test | null {
+  tryMove(move: Move): AtomicChessResponse | null {
     const {data} = this;
     const {board, activeColor} = data;
     if (isValidStandardCapture(data, move)) return this.update(capture(board, move));

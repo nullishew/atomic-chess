@@ -36,42 +36,27 @@ export class Game extends Scene {
     // Initialize game over status
     this.isGameOver = false;
 
-    // Center game view
-    const cam = this.cameras.main;
-    const { centerX, centerY } = cam;
-    cam.setScroll(-centerX, -centerY);
+
+    // Initialize atomic chess game
+    this.chessLogic = new AtomicChessLogic(structuredClone(INITIAL_GAMESTATE), this);
 
     // Initialize atomic chess gui
     this.chessGUI = new AtomicChessGUI(this, chessTileSize);
 
-    // Initialize atomic chess game
-    this.chessLogic = new AtomicChessLogic(INITIAL_GAMESTATE, this);
-
-    
-
-    this.createMenus();
-
-    this.setupMouseInput();
-
-  }
-
-  // Create promotion and game over menus
-  createMenus() {
+    // Create menus for promoting pawns
     this.promotionMenus = {
-      [Color.WHITE]: createPromotionMenu(this, Color.WHITE).setVisible(false),
-      [Color.BLACK]: createPromotionMenu(this, Color.BLACK).setVisible(false),
+      [Color.WHITE]: this.createPromotionMenu(Color.WHITE).setVisible(false),
+      [Color.BLACK]: this.createPromotionMenu(Color.BLACK).setVisible(false),
     }
 
+    // Create menus for when the game ends
     this.gameOverMenus = {
-      [GameOverType.WHITE_WIN]: createGameOverMenu(this, 'Winner:', this.add.image(0, 0, ASSETS.CHESS_PIECES.key, 0).setScale(2)).setVisible(false),
-      [GameOverType.BLACK_WIN]: createGameOverMenu(this, 'Winner:', this.add.image(0, 0, ASSETS.CHESS_PIECES.key, 1).setScale(2)).setVisible(false),
-      [GameOverType.DRAW]: createGameOverMenu(this, 'Draw', null).setVisible(false),
-      [GameOverType.STALEMATE]: createGameOverMenu(this, 'Stalemate', null).setVisible(false)
+      [GameOverType.WHITE_WIN]: this.createGameOverMenu('Winner:', this.add.image(0, 0, ASSETS.CHESS_PIECES.key, 0).setScale(2)).setVisible(false),
+      [GameOverType.BLACK_WIN]: this.createGameOverMenu('Winner:', this.add.image(0, 0, ASSETS.CHESS_PIECES.key, 1).setScale(2)).setVisible(false),
+      [GameOverType.DRAW]: this.createGameOverMenu('Draw', null).setVisible(false),
+      [GameOverType.STALEMATE]: this.createGameOverMenu('Stalemate', null).setVisible(false)
     }
-  }
 
-  // Setup mouse input handlers
-  setupMouseInput() {
     // Add pointer input to keep track of the square the pointer is currently hovering over
     this.input.on('pointermove', () => {
       const { x, y } = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
@@ -81,10 +66,10 @@ export class Game extends Scene {
     // Add pointer input to indicate the square the pointer is currently hovering over
     this.input.on('pointermove', () => {
       if (this.isGameOver) return;
-      this.chessGUI.pointerSquare(this.pointerSquare);
+      this.chessGUI.highlightSquare(this.pointerSquare);
     });
 
-    // Add pointer input to select squares and make moves
+    // Add pointer input to select squares and make moves when squares are clicked
     this.input.on('pointerdown', () => {
       if (this.isGameOver) return;
       const { pointerSquare } = this;
@@ -103,6 +88,55 @@ export class Game extends Scene {
       this.deselectSquare();
       this.tryMove({ from: square, to: pointerSquare });
     });
+  }
+
+  createPromotionMenu(color: Color): GameObjects.Container {
+    const container = this.add.container(0, 0);
+    const background = this.add.graphics()
+      .fillStyle(color == Color.WHITE ? 0x000000 : 0xffffff, 1)
+      .fillRect(-64, -16, 128, 32);
+    const pieceOptions: Record<Color, PromotablePiece[]> = {
+      [Color.WHITE]: ['Q', 'B', 'N', 'R'],
+      [Color.BLACK]: ['q', 'b', 'n', 'r'],
+    };
+    const buttons = pieceOptions[color].map(
+      (piece, i) => this.add.image((i - 1.5) * 32, 0, ASSETS.CHESS_PIECES.key, PIECE_TO_TEXTURE_FRAME[piece])
+        .setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => {
+          container.visible = false;
+          this.chessLogic.promote(this.promotionSquare, piece);
+          this.chessGUI.promoteSprite(this.promotionSquare, piece);
+          this.tryGameOver();
+        })
+    );
+    return container.add([background, ...buttons]);
+  }
+
+  createGameOverMenu(text: string, image: GameObjects.Image | null): GameObjects.Container {
+    const container = this.add.container(0, 0);
+    const background = this.add.graphics()
+      .fillStyle(0xfffffff, .75)
+      .fillRect(-64, -64, 128, 128);
+    const textElem = this.add.text(0, -32, text, { color: 'black', fontFamily: 'Super Dream', fontSize: 24 })
+      .setResolution(32)
+      .setOrigin(.5);
+    const button = this.add.image(0, 32, ASSETS.RETRY.key)
+      .setScale(1)
+      .setOrigin(.5)
+      .setInteractive({ useHandCursor: true })
+      .once('pointerdown', () => {
+        this.cameras.main.fadeOut(1000, 0, 0, 0);
+        this.time.addEvent({
+          delay: 1000,
+          callback: () => this.scene.restart(),
+        });
+      });
+    return container.add([
+      background,
+      textElem,
+      image,
+      button
+    ].flatMap(elem => elem ?? []));
   }
 
   // Attempt to make a move
@@ -127,8 +161,8 @@ export class Game extends Scene {
     if (!gameOverType) return;
     this.isGameOver = true;
     const menu = this.gameOverMenus[gameOverType];
-    menu.visible = true;
-    menu.alpha = 0;
+    menu.setVisible(true)
+      .setAlpha(0);
     this.tweens.add({
       targets: menu,
       duration: 1000,
@@ -143,7 +177,7 @@ export class Game extends Scene {
     this.selectedSquare = square;
     this.chessGUI.selectSquare(square);
 
-    // show valid moves
+    // Show circles and dots to indicate valid moves and captures
     this.chessGUI.hideActionIndicators();
     this.chessGUI.indicateCapturableSquares(getValidStandardCapturesFrom(this.chessLogic.data, square))
     this.chessGUI.indicateMovableSquares([
@@ -159,60 +193,7 @@ export class Game extends Scene {
   deselectSquare() {
     this.selectedSquare = null;
     this.chessGUI.deselectSquare();
+    this.chessGUI.highlightSquare(null);
     this.chessGUI.hideActionIndicators();
   }
 }
-
-
-
-// Function to create promotion menu
-function createPromotionMenu(game: Game, color: Color): GameObjects.Container {
-  const container = game.add.container(0, 0);
-  const background = game.add.graphics()
-    .fillStyle(color == Color.WHITE ? 0x000000 : 0xffffff, 1)
-    .fillRect(-64, -16, 128, 32);
-  const pieceOptions: Record<Color, PromotablePiece[]> = {
-    [Color.WHITE]: ['Q', 'B', 'N', 'R'],
-    [Color.BLACK]: ['q', 'b', 'n', 'r'],
-  };
-  const buttons = pieceOptions[color].map(
-    (piece, i) => game.add.image((i - 1.5) * 32, 0, ASSETS.CHESS_PIECES.key, PIECE_TO_TEXTURE_FRAME[piece])
-      .setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => {
-        container.visible = false;
-        game.chessLogic.promote(game.promotionSquare, piece);
-        game.chessGUI.promote(game.promotionSquare, piece);
-        game.tryGameOver();
-      })
-  );
-  return container.add([background, ...buttons]);
-}
-
-// Function to create game over menu
-function createGameOverMenu(game: Scene, text: string, image: GameObjects.Image | null): GameObjects.Container {
-  const container = game.add.container(0, 0);
-  const background = game.add.graphics()
-    .fillStyle(0xfffffff, .75)
-    .fillRect(-64, -64, 128, 128);
-  const textElem = game.add.text(0, -32, text, { color: 'black', fontFamily: 'Super Dream', fontSize: 24 })
-    .setResolution(32)
-    .setOrigin(.5);
-  const button = game.add.image(0, 32, ASSETS.RETRY.key)
-    .setScale(1)
-    .setOrigin(.5)
-    .setInteractive({ useHandCursor: true })
-    .once('pointerdown', () => {
-      game.cameras.main.fadeOut(1000, 0, 0, 0);
-      game.time.addEvent({
-        delay: 1000,
-        callback: () => game.scene.restart(),
-      });
-    });
-  return container.add([
-    background,
-    textElem,
-    image ?? game.add.container(),
-    button,
-  ]);
-}
-

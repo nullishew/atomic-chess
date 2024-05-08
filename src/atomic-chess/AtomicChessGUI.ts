@@ -10,7 +10,6 @@ export class AtomicChessGUI {
   chessboardTilemap: Tilemaps.Tilemap;
 
   sprites: Record<Square, ChessPiece | null>;
-  chessPieceContainer: GameObjects.Container;
 
   pointerTileIndicator: GameObjects.Graphics;
   selectedTileIndicator: GameObjects.Graphics;
@@ -21,21 +20,18 @@ export class AtomicChessGUI {
   explosionSound: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   explosionParticles: GameObjects.Particles.ParticleEmitter;
 
-  camera: Phaser.Cameras.Scene2D.Camera;
-
   constructor(scene: Scene, tileSize: number) {
     this.scene = scene;
 
-    // Get reference to main camera
-    this.camera = scene.cameras.main;
+     // Center game view
+     scene.cameras.main.centerOn(0, 0);
 
     // Add chessboard
     this.chessboardTilemap = createChessboard(this.scene, tileSize);
 
     // Add chess pieces
-    this.chessPieceContainer = this.scene.add.container();
-    this.sprites = createChessPieceSprites(scene, this, this.chessPieceContainer, structuredClone(INITIAL_CHESSBOARD_POSITION));
-
+    const chessPieceContainer = this.scene.add.container();
+    this.sprites = createChessPieceSprites(scene, this, chessPieceContainer, structuredClone(INITIAL_CHESSBOARD_POSITION));
 
     // Add tile indicators (mouse hover, selected)
     const tileIndicatorContainer = this.scene.add.container();
@@ -73,7 +69,13 @@ export class AtomicChessGUI {
 
   }
 
-  pointerSquare(square: Square | null) {
+  explode(x: number, y: number) {
+    this.explosionParticles.explode(50, x, y);
+    this.scene.cameras.main.shake(500, .01);
+    this.explosionSound.play();
+  }
+
+  highlightSquare(square: Square | null) {
     if (!square) {
       this.pointerTileIndicator.visible = false;
       return;
@@ -112,40 +114,27 @@ export class AtomicChessGUI {
   }
 
   update(response: AtomicChessResponse) {
-    const { explosions, moves, moveType } = response;
-    console.log('fdsfsdfsdfsdfsdfsdfsdfasfasdfsad');
-    if (moveType == MoveType.EN_PASSANT) {
-      console.log('fdsdfsdfsdfsdfsdf oh no something broke');
-      console.table(explosions);
-      console.table(moves);
-      console.log('what');
-    }
-    explosions.forEach(this.explosionUpdate);
-    moves.forEach(this.moveUpdate);
-    explosions.forEach(this.explosionUpdate);
+    const { explosions, moves } = response;
+    explosions.forEach(this.explodeSprite);
+    moves.forEach(this.moveSprite);
+    explosions.forEach(this.explodeSprite);
   }
 
-  explosionUpdate = (square: Square) => {
+  explodeSprite = (square: Square) => {
     this.sprites[square]?.explode();
     this.sprites[square] = null;
   }
 
-  moveUpdate = ({ from, to }: Move) => {
-    console.log('fdfsdfsd');
+  moveSprite = ({ from, to }: Move) => {
     this.sprites[from]?.move(to);
     this.sprites[to] = this.sprites[from];
     this.sprites[from] = null;
   }
 
-
-  promote(square: Square, piece: PromotablePiece) {
-    this.sprites[square]?.destroy();
-    const sprite = createChessPieceSprite(this.scene, this, piece, square);
-    this.chessPieceContainer.add(sprite);
-    this.sprites[square] = sprite;
+  promoteSprite(square: Square, piece: PromotablePiece) {
+    this.sprites[square]?.promote(piece);
   }
 }
-
 
 // Function to create chessboard tilemap
 function createChessboard(scene: Scene, tileSize: number): Tilemaps.Tilemap {
@@ -189,7 +178,6 @@ function createCaptureMarker(scene: Scene, x: number, y: number, lineWidth: numb
     .strokeCircle(x, y, size)
     .setActive(false);
 }
-
 
 function createChessPieceSprite(scene: Scene, gui: AtomicChessGUI, piece: Piece, square: Square): ChessPiece {
   return scene.add.existing(new ChessPiece(gui, PIECE_TO_TEXTURE_FRAME[piece], square));

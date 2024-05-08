@@ -1,6 +1,6 @@
 import { GameObjects } from "phaser";
-import { ASSETS } from "../assets";
-import { Square, squareToWorldXY } from "./atomicChess";
+import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
+import { PromotablePiece, Square, squareToWorldXY } from "./atomicChess";
 import { AtomicChessGUI } from "./AtomicChessGUI";
 
 export class ChessPiece extends GameObjects.Sprite {
@@ -13,6 +13,22 @@ export class ChessPiece extends GameObjects.Sprite {
     this.square = square;
     this.setOrigin(0);
     this.gui = gui;
+  }
+
+  explode() {
+    const {x, y} = squareToWorldXY(this.square, this.gui.chessboardTilemap);
+    const tween = this.gui.scene.tweens.add({
+      targets: this,
+      x: x,
+      y: y,
+      ease: 'quad.in',
+      duration: 100,
+    });
+    tween.on('complete', () => {
+      this.gui.explode(x, y);
+      this.setPosition(x, y);
+      this.destroy();
+    });
   }
 
   move(square: Square) {
@@ -30,23 +46,10 @@ export class ChessPiece extends GameObjects.Sprite {
     });
   }
 
-  explode() {
-    const {x, y} = squareToWorldXY(this.square, this.gui.chessboardTilemap);
-    const tween = this.gui.scene.tweens.add({
-      targets: this,
-      x: x,
-      y: y,
-      ease: 'quad.in',
-      duration: 100,
-    });
-    tween.on('complete', () => {
-      const { explosionParticles, camera, explosionSound } = this.gui;
-      explosionParticles.explode(50, this.x, this.y);
-      camera.shake(500, .01);
-      explosionSound.play();
-      this.setPosition(x, y);
-      this.destroy();
-    });
+  promote(piece: PromotablePiece) {
+    this.setFrame(PIECE_TO_TEXTURE_FRAME[piece]);
   }
+
+  
 
 }
