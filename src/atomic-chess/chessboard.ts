@@ -1,12 +1,14 @@
-import { Move, Square, Chessboard, Piece, CHESSBOARD_SQUARES, Color, SQUARE_TO_INDEX, gridIndexToSquare, CastleType, PIECE_TO_TYPE, PieceType, CASTLE_MOVES, MoveType } from "./atomicChess";
+import { Move, Square, Chessboard, Piece, CHESSBOARD_SQUARES, Color, SQUARE_TO_INDEX, gridIndexToSquare, CastleType, PIECE_TO_TYPE, PieceType, CASTLE_MOVES, MoveType, squareIndexToSquare, PIECE_CAPTURE_PATTERNS, PIECE_TO_COLOR, getEnemyColor, moveSquare } from "./atomicChess";
 import { canPromotePawnAt } from "./validator";
 
-// Defines a structure for logging chess actions
+// Defines a structure for providing information about the result of a move on an atomic chess board
 export interface AtomicChessResponse {
-  moves: Move[],
-  explosions: Square[],
   result: Chessboard,
   moveType: MoveType,
+  actions: {
+    move: Move,
+    explode: boolean
+  }[],
 }
 
 // Finds a specific piece on the board
@@ -31,10 +33,9 @@ export function standardMove(board: Chessboard, move: Move): AtomicChessResponse
   let result = structuredClone(board);
   movePiece(result, move);
   return {
-    moves: [move],
-    explosions: [],
     result: result,
     moveType: canPromotePawnAt(result, move.to) ? MoveType.PROMOTION : MoveType.STANDARD_MOVE,
+    actions: [{move: move, explode: false}],
   };
 }
 
@@ -43,10 +44,9 @@ export function moveDouble(board: Chessboard, move: Move): AtomicChessResponse {
   let result = structuredClone(board);
   movePiece(result, move);
   return {
-    moves: [move],
-    explosions: [],
     result: result,
     moveType: MoveType.DOUBLE,
+    actions: [{move: move, explode: false}],
   };
 }
 
@@ -59,10 +59,13 @@ export function capture(board: Chessboard, move: Move): AtomicChessResponse {
   surroundingExplosions.forEach(square => explodeSquare(result, square));
   explodeSquare(result, to);
   return {
-    moves: [move],
-    explosions: [to, ...surroundingExplosions],
     result: result,
     moveType: MoveType.CAPTURE,
+    actions: [
+      {move: move, explode: true},
+      {move: {from: to, to: to}, explode: true},
+      ...surroundingExplosions.map(square => ({move: {from: square, to: square}, explode: true})),
+    ],
   };
 }
 
@@ -72,28 +75,37 @@ export function enPassant(board: Chessboard, move: Move): AtomicChessResponse {
   const { from, to } = move;
   const r1 = SQUARE_TO_INDEX[from][0];
   const c2 = SQUARE_TO_INDEX[to][1];
-  const target = gridIndexToSquare([r1, c2]) as Square;
+  const target = squareIndexToSquare([r1, c2]);
   movePiece(result, move);
   explodeSquare(result, target)
   const surroundingExplosions = getSurroundingExplosions(result, to);
   surroundingExplosions.forEach(square => explodeSquare(result, square));
   explodeSquare(result, to);
   return {
-    moves: [move],
-    explosions: [to, target, ...surroundingExplosions],
     result: result,
     moveType: MoveType.EN_PASSANT,
+    actions: [
+      {move: move, explode: true},
+      {move: {from: target, to: target}, explode: true},
+      ...surroundingExplosions.map(square => ({move: {from: square, to: square}, explode: true})),
+    ],
   };
 }
 
-// Performs a kingside castle for the specified player and returns information about the action
-export function castleKingside(board: Chessboard, color: Color): AtomicChessResponse {
-  return castle(board, color, CastleType.KINGSIDE);
-}
-
-// Performs a queenside castle for the specified player and returns information about the action
-export function castleQueenside(board: Chessboard, color: Color): AtomicChessResponse {
-  return castle(board, color, CastleType.QUEENSIDE);
+// Castles the specified player color to the specified side and returns information about the action
+export function castle(board: Chessboard, color: Color, castleSide: CastleType) : AtomicChessResponse {
+  let result = structuredClone(board);
+  const { kingMove, rookMove } = CASTLE_MOVES[color][castleSide];
+  movePiece(result, kingMove);
+  movePiece(result, rookMove);
+  return {
+    result: result,
+    moveType: castleSide == CastleType.KINGSIDE ? MoveType.KINGSIDE_CASTLE : MoveType.QUEENSIDE_CASTLE,
+    actions: [
+      {move: kingMove, explode: false},
+      {move: rookMove, explode: false},
+    ],
+  };
 }
 
 // Moves a piece from one square to another
@@ -125,16 +137,33 @@ function getSurroundingExplosions(board: Chessboard, square: Square): Square[] {
   return explosions;
 }
 
-// Castles the specified player color to the specified side and returns information about the action
-function castle(board: Chessboard, color: Color, castleSide: CastleType) {
-  let result = structuredClone(board);
-  const { kingMove: king, rookMove: rook } = CASTLE_MOVES[color][castleSide];
-  movePiece(result, king);
-  movePiece(result, rook);
-  return {
-    moves: [king, rook],
-    explosions: [],
-    result: result,
-    moveType: castleSide == CastleType.KINGSIDE ? MoveType.KINGSIDE_CASTLE : MoveType.QUEENSIDE_CASTLE,
-  };
+export function isAtomicCheck(board: Chessboard, activeColor: Color): boolean {
+  const enemyColor = getEnemyColor(activeColor);
+  const kingPos = findKing(board, activeColor);
+  const enemyKingPos = findKing(board, enemyColor);
+  if (!kingPos || !enemyKingPos) return false;
+  if (isAdjacent(kingPos, enemyKingPos)) return false;
+  for (let [piece, color] of Object.entries(PIECE_TO_COLOR) as [Piece, Color][]) {
+    if (activeColor == color) continue;
+    const { patterns: pattern, steps } = PIECE_CAPTURE_PATTERNS[piece];
+    for (let offset of pattern) {
+      for (let i = 1; i <= steps; i++) {
+        const square = moveSquare(kingPos, offset, -i);
+        if (!square) break;
+        const piece2 = board[square];
+        if (!piece2) continue;
+        if (PIECE_TO_COLOR[piece2] != enemyColor || PIECE_TO_TYPE[piece2] != PIECE_TO_TYPE[piece]) break;
+        return true;
+      }
+    }
+  }
+  return false;
 }
+
+export function isValidAtomicChessPosition(board: Chessboard, activeColor: Color): boolean {
+  return findKing(board, activeColor) != null && !isAtomicCheck(board, activeColor);
+}
+
+
+
+

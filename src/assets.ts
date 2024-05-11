@@ -1,11 +1,12 @@
 import { Piece } from "./atomic-chess/atomicChess";
 
+// Define structure of asset data to keep track of asset keys and src files
 interface Asset {
   key: string,
   src: string,
 };
 
-// Map asset names to asset key and asset src file
+// Map asset names to asset data
 export const ASSETS: Record<string, Asset> = {
   CHESS_PIECES: { key: 'chess-pieces', src: 'pixel-chess-sprites.png' },
   CHESSBOARD_TILES: { key: 'chessboard-tiles', src: 'pixel-chess-tiles.png' },

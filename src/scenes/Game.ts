@@ -1,10 +1,11 @@
 import { Scene, GameObjects } from "phaser";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
-import { chessTileSize } from "../main";
-import { Square, Color, PIECE_TO_COLOR, MoveType, GameOverType, PromotablePiece, INITIAL_GAMESTATE, worldXYToSquare, Move, CastleType } from "../atomic-chess/atomicChess";
-import { AtomicChessLogic } from "../atomic-chess/AtomicChessLogic";
-import { getValidCastlesFrom, getValidDoubleMovesFrom, getValidEnPassantsFrom, getValidStandardCapturesFrom, getValidStandardMovesFrom } from "../atomic-chess/validator";
 import { AtomicChessGUI } from "../atomic-chess/AtomicChessGUI";
+import { AtomicChessLogic } from "../atomic-chess/AtomicChessLogic";
+import { Color, GameOverType, Square, INITIAL_GAMESTATE, PIECE_TO_COLOR, PromotablePiece, Move, MoveType, CastleType, SQUARE_TO_INDEX, gridIndexToSquare } from "../atomic-chess/atomicChess";
+import { getValidStandardCapturesFrom, getValidCastlesFrom, getValidDoubleMovesFrom, getValidEnPassantsFrom, getValidStandardMovesFrom } from "../atomic-chess/validator";
+import { chessTileSize } from "../main";
+
 
 // Game scene class definition
 export class Game extends Scene {
@@ -20,10 +21,6 @@ export class Game extends Scene {
 
   pointerSquare: Square | null;
 
-  get chessboardTilemap() {
-    return this.chessGUI.chessboardTilemap;
-  }
-
   constructor() {
     super('Game'); // Call to superclass constructor with scene key
   }
@@ -36,12 +33,11 @@ export class Game extends Scene {
     // Initialize game over status
     this.isGameOver = false;
 
-
     // Initialize atomic chess game
     this.chessLogic = new AtomicChessLogic(structuredClone(INITIAL_GAMESTATE), this);
 
     // Initialize atomic chess gui
-    this.chessGUI = new AtomicChessGUI(this, chessTileSize);
+    this.chessGUI = new AtomicChessGUI(this, chessTileSize, 100);
 
     // Create menus for promoting pawns
     this.promotionMenus = {
@@ -60,7 +56,7 @@ export class Game extends Scene {
     // Add pointer input to keep track of the square the pointer is currently hovering over
     this.input.on('pointermove', () => {
       const { x, y } = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
-      this.pointerSquare = worldXYToSquare(x, y, this.chessboardTilemap);
+      this.pointerSquare = worldXYToSquare(x, y, this.chessGUI.chessboardTilemap);
     });
 
     // Add pointer input to indicate the square the pointer is currently hovering over
@@ -197,3 +193,16 @@ export class Game extends Scene {
     this.chessGUI.hideActionIndicators();
   }
 }
+
+// Converts a square to the corresponding world position based on the given tilemap
+
+export function squareToWorldXY(square: Square, tilemap: Phaser.Tilemaps.Tilemap): Phaser.Math.Vector2 {
+  const [r, c] = SQUARE_TO_INDEX[square];
+  return tilemap.tileToWorldXY(c, 7 - r) as Phaser.Math.Vector2;
+}// Converts a world position based on the given tilemap to the corresponding square or null if there is no square at the given position
+
+export function worldXYToSquare(x: number, y: number, tilemap: Phaser.Tilemaps.Tilemap): Square | null {
+  const { x: c, y: r } = tilemap.worldToTileXY(x, y) as Phaser.Math.Vector2;
+  return gridIndexToSquare([7 - r, c]);
+}
+

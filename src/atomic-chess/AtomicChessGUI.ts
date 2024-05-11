@@ -1,5 +1,6 @@
 import { Scene, Tilemaps, GameObjects, Sound } from "phaser";
-import { Square, CHESSBOARD_SQUARES, squareToWorldXY, Piece, Chessboard, INITIAL_CHESSBOARD_POSITION, PromotablePiece, Move, MoveType } from "./atomicChess";
+import { Square, CHESSBOARD_SQUARES, Piece, Chessboard, INITIAL_CHESSBOARD_POSITION, PromotablePiece, Move, MoveType } from "./atomicChess";
+import { squareToWorldXY } from "../scenes/Game";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { ChessPiece } from "./ChessPieceSprite";
 import { AtomicChessResponse } from "./chessboard";
@@ -20,18 +21,22 @@ export class AtomicChessGUI {
   explosionSound: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   explosionParticles: GameObjects.Particles.ParticleEmitter;
 
-  constructor(scene: Scene, tileSize: number) {
+  pieceMoveTime: number;
+
+  constructor(scene: Scene, tileSize: number, pieceMoveTime: number) {
     this.scene = scene;
 
-     // Center game view
-     scene.cameras.main.centerOn(0, 0);
+    this.pieceMoveTime = pieceMoveTime;
+
+    // Center game view
+    scene.cameras.main.centerOn(0, 0);
 
     // Add chessboard
     this.chessboardTilemap = createChessboard(this.scene, tileSize);
 
     // Add chess pieces
     const chessPieceContainer = this.scene.add.container();
-    this.sprites = createChessPieceSprites(scene, this, chessPieceContainer, structuredClone(INITIAL_CHESSBOARD_POSITION));
+    this.sprites = createChessPieceSprites(scene, this.chessboardTilemap, chessPieceContainer, structuredClone(INITIAL_CHESSBOARD_POSITION));
 
     // Add tile indicators (mouse hover, selected)
     const tileIndicatorContainer = this.scene.add.container();
@@ -113,23 +118,29 @@ export class AtomicChessGUI {
     }
   }
 
-  update(response: AtomicChessResponse) {
-    const { explosions, moves } = response;
-    explosions.forEach(this.explodeSprite);
-    moves.forEach(this.moveSprite);
-    explosions.forEach(this.explodeSprite);
+  update({ actions }: AtomicChessResponse) {
+    for (const { move: { from, to }, explode } of actions) {
+      const sprite = this.sprites[from];
+      if (!sprite) continue;
+      const {x, y} = squareToWorldXY(to, this.chessboardTilemap);
+      sprite.move(x, y, explode, this.pieceMoveTime);
+      if (!explode) continue;
+      this.scene.time.addEvent({
+        delay: this.pieceMoveTime,
+        callback: () => this.explode(x, y),
+      });
+    }
+    for (const { move: { from, to }, explode } of actions) {
+      if (to != from) {
+        this.sprites[to] = this.sprites[from];
+        this.sprites[from] = null;
+      }
+      if (explode) {
+        this.sprites[to] = null;
+      }
+    }
   }
 
-  explodeSprite = (square: Square) => {
-    this.sprites[square]?.explode();
-    this.sprites[square] = null;
-  }
-
-  moveSprite = ({ from, to }: Move) => {
-    this.sprites[from]?.move(to);
-    this.sprites[to] = this.sprites[from];
-    this.sprites[from] = null;
-  }
 
   promoteSprite(square: Square, piece: PromotablePiece) {
     this.sprites[square]?.promote(piece);
@@ -179,11 +190,11 @@ function createCaptureMarker(scene: Scene, x: number, y: number, lineWidth: numb
     .setActive(false);
 }
 
-function createChessPieceSprite(scene: Scene, gui: AtomicChessGUI, piece: Piece, square: Square): ChessPiece {
-  return scene.add.existing(new ChessPiece(gui, PIECE_TO_TEXTURE_FRAME[piece], square));
+function createChessPieceSprite(scene: Scene, piece: Piece, x: number, y: number): ChessPiece {
+  return scene.add.existing(new ChessPiece(scene, PIECE_TO_TEXTURE_FRAME[piece], x, y));
 }
 
-function createChessPieceSprites(scene: Scene, gui: AtomicChessGUI, container: GameObjects.Container, board: Chessboard): Record<Square, ChessPiece | null> {
+function createChessPieceSprites(scene: Scene, tilemap: Tilemaps.Tilemap, container: GameObjects.Container, board: Chessboard): Record<Square, ChessPiece | null> {
   const sprites: Record<Square, ChessPiece | null> = {} as Record<Square, ChessPiece | null>;
   for (const square of CHESSBOARD_SQUARES) {
     const piece = board[square];
@@ -191,7 +202,8 @@ function createChessPieceSprites(scene: Scene, gui: AtomicChessGUI, container: G
       sprites[square] = null;
       continue;
     }
-    const sprite = createChessPieceSprite(scene, gui, piece, square);
+    const {x, y} = squareToWorldXY(square, tilemap);
+    const sprite = createChessPieceSprite(scene, piece, x, y);
     sprites[square] = sprite;
     container.add(sprite);
   }

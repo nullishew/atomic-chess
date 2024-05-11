@@ -1,6 +1,6 @@
-import { Square, FEN, Move, MoveType, GameOverType, Color, getEnemyColor, PromotablePiece, SQUARE_TO_INDEX, gridIndexToSquare, PIECE_TO_COLOR } from "./atomicChess";
-import { isValidStandardCapture, isValidDoubleMove, isValidEnPassant, isValidKingsideCastle, isValidQueensideCastle, isValidStandardMove, isCheckMate, isStaleMate } from "./validator";
-import { findKing, AtomicChessResponse, capture, standardMove, castleKingside, castleQueenside, enPassant, moveDouble } from "./chessboard";
+import { Square, FEN, Move, MoveType, GameOverType, Color, getEnemyColor, PromotablePiece, SQUARE_TO_INDEX, gridIndexToSquare, PIECE_TO_COLOR, CastleType } from "./atomicChess";
+import { isCheckMate, isStaleMate, getValidStandardCapturesFrom, getValidDoubleMovesFrom, getValidEnPassantsFrom, getValidStandardMovesFrom, getValidCastlesFrom } from "./validator";
+import { findKing, AtomicChessResponse, capture, standardMove, enPassant, moveDouble, castle } from "./chessboard";
 import { Game as GameScene } from "../scenes/Game";
 
 export class AtomicChessLogic {
@@ -13,14 +13,15 @@ export class AtomicChessLogic {
   }
 
   tryMove(move: Move): AtomicChessResponse | null {
-    const {data} = this;
-    const {board, activeColor} = data;
-    if (isValidStandardCapture(data, move)) return this.update(capture(board, move));
-    if (isValidDoubleMove(data, move)) return this.update(moveDouble(board, move));
-    if (isValidEnPassant(data, move)) return this.update(enPassant(board, move));
-    if (isValidKingsideCastle(data, move)) return this.update(castleKingside(board, activeColor));
-    if (isValidQueensideCastle(data, move)) return this.update(castleQueenside(board, activeColor));
-    if (isValidStandardMove(data, move)) return this.update(standardMove(this.data.board, move));
+    const { data } = this;
+    const { board, activeColor } = data;
+    const {from, to} = move;
+    if (getValidDoubleMovesFrom(data, from).includes(to)) return this.update(moveDouble(board, move));
+    if (getValidEnPassantsFrom(data, from).includes(to)) return this.update(enPassant(board, move));
+    if (getValidCastlesFrom(data, CastleType.KINGSIDE, from).includes(to)) return this.update(castle(board, activeColor, CastleType.KINGSIDE));
+    if (getValidCastlesFrom(data, CastleType.QUEENSIDE, from).includes(to)) return this.update(castle(board, activeColor, CastleType.QUEENSIDE));
+    if (getValidStandardCapturesFrom(data, from).includes(to)) return this.update(capture(board, move));
+    if (getValidStandardMovesFrom(data, from).includes(to)) return this.update(standardMove(this.data.board, move));
     return null;
   }
 
@@ -36,10 +37,9 @@ export class AtomicChessLogic {
     return this.isFiftyMoveDraw();
   }
 
-  isWin(color: Color) {
-    const inactiveColor = getEnemyColor(color);
-    const { board } = this.data;
-    return isCheckMate(this.data, inactiveColor) || !findKing(board, inactiveColor);
+  isWin(activeColor: Color) {
+    const inactiveColor = getEnemyColor(activeColor);
+    return isCheckMate(this.data, inactiveColor) || !findKing(this.data.board, inactiveColor);
   }
 
   isFiftyMoveDraw() {
@@ -52,14 +52,18 @@ export class AtomicChessLogic {
 
   switchTurn() {
     this.data.halfMoves++;
-    this.data.fullMoves += +(this.data.activeColor == Color.BLACK);
+    if (this.data.activeColor == Color.BLACK) {
+      this.data.fullMoves++;
+    }
     this.data.activeColor = getEnemyColor(this.data.activeColor);
     this.data.enPassantTargets = [];
   }
 
-
   update(response: AtomicChessResponse): AtomicChessResponse {
-    const { moves, explosions, result, moveType } = response;
+    const { actions, result, moveType } = response;
+    const moves = actions.flatMap(({move}) => move.from != move.to ? move : []);
+    const explosions = actions.flatMap(({move, explode}) => explode ? move.to : []);
+
     console.log(moveType);
     this.switchTurn();
     if (moveType == MoveType.DOUBLE) {

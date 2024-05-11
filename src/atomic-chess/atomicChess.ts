@@ -6,7 +6,7 @@ export enum Color {
 
 // Enumerate the possible types of moves
 export enum MoveType {
-  CAPTURE = 'stnadard capture',
+  CAPTURE = 'standard capture',
   DOUBLE = 'pawn double move',
   EN_PASSANT = 'en passant',
   KINGSIDE_CASTLE = 'kingside castle',
@@ -55,7 +55,7 @@ export interface CastleMove {
 // Define the structure of a move pattern
 export interface MovePattern {
   steps: number,
-  pattern: Pos[],
+  patterns: SquareOffset[],
 }
 
 // Define the possible chess squares
@@ -70,15 +70,11 @@ export type Square =
   'a1' | 'b1' | 'c1' | 'd1' | 'e1' | 'f1' | 'g1' | 'h1';
 
 // Define the possible grid indices on a chessboard
-export type SquareIndex =
-  [0, 0] | [0, 1] | [0, 2] | [0, 3] | [0, 4] | [0, 5] | [0, 6] | [0, 7] |
-  [1, 0] | [1, 1] | [1, 2] | [1, 3] | [1, 4] | [1, 5] | [1, 6] | [1, 7] |
-  [2, 0] | [2, 1] | [2, 2] | [2, 3] | [2, 4] | [2, 5] | [2, 6] | [2, 7] |
-  [3, 0] | [3, 1] | [3, 2] | [3, 3] | [3, 4] | [3, 5] | [3, 6] | [3, 7] |
-  [4, 0] | [4, 1] | [4, 2] | [4, 3] | [4, 4] | [4, 5] | [4, 6] | [4, 7] |
-  [5, 0] | [5, 1] | [5, 2] | [5, 3] | [5, 4] | [5, 5] | [5, 6] | [5, 7] |
-  [6, 0] | [6, 1] | [6, 2] | [6, 3] | [6, 4] | [6, 5] | [6, 6] | [6, 7] |
-  [7, 0] | [7, 1] | [7, 2] | [7, 3] | [7, 4] | [7, 5] | [7, 6] | [7, 7];
+type Index = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type SquareIndex = [Index, Index];
+
+type Offset = -7 | -6 | -5 | -4 | -3 | -2 | -1 | Index;
+export type SquareOffset = [Offset, Offset];
 
 // Define a position on a grid
 export type Pos = [number, number];
@@ -153,7 +149,7 @@ export const SQUARE_TO_INDEX: Record<Square, SquareIndex> = {
 };
 
 // Define possible movement patterns
-export const MOVE_PATTERNS: Record<string, Pos[]> = {
+export const MOVE_PATTERNS: Record<string, SquareOffset[]> = {
   ALL: [
     [0, 1],
     [0, -1],
@@ -198,41 +194,35 @@ export const MOVE_PATTERNS: Record<string, Pos[]> = {
 
 // Map pieces to their standard movement patterns
 export const PIECE_MOVE_PATTERNS: Record<Piece, MovePattern> = {
-  K: { steps: 1, pattern: MOVE_PATTERNS.ALL },
-  Q: { steps: 7, pattern: MOVE_PATTERNS.ALL },
-  B: { steps: 7, pattern: MOVE_PATTERNS.DIAGONAL },
-  N: { steps: 1, pattern: MOVE_PATTERNS.L_SHAPE },
-  R: { steps: 7, pattern: MOVE_PATTERNS.PLUS_SHAPE },
-  P: { steps: 1, pattern: [[1, 0]] },
-  k: { steps: 1, pattern: MOVE_PATTERNS.ALL },
-  q: { steps: 7, pattern: MOVE_PATTERNS.ALL },
-  b: { steps: 7, pattern: MOVE_PATTERNS.DIAGONAL },
-  n: { steps: 1, pattern: MOVE_PATTERNS.L_SHAPE },
-  r: { steps: 7, pattern: MOVE_PATTERNS.PLUS_SHAPE },
-  p: { steps: 1, pattern: [[-1, 0]] },
+  K: { steps: 1, patterns: MOVE_PATTERNS.ALL },
+  Q: { steps: 7, patterns: MOVE_PATTERNS.ALL },
+  B: { steps: 7, patterns: MOVE_PATTERNS.DIAGONAL },
+  N: { steps: 1, patterns: MOVE_PATTERNS.L_SHAPE },
+  R: { steps: 7, patterns: MOVE_PATTERNS.PLUS_SHAPE },
+  P: { steps: 1, patterns: [[1, 0]] },
+  k: { steps: 1, patterns: MOVE_PATTERNS.ALL },
+  q: { steps: 7, patterns: MOVE_PATTERNS.ALL },
+  b: { steps: 7, patterns: MOVE_PATTERNS.DIAGONAL },
+  n: { steps: 1, patterns: MOVE_PATTERNS.L_SHAPE },
+  r: { steps: 7, patterns: MOVE_PATTERNS.PLUS_SHAPE },
+  p: { steps: 1, patterns: [[-1, 0]] },
 };
 
 // Map pieces to their movement patterns when capturing pieces
 export const PIECE_CAPTURE_PATTERNS: Record<Piece, MovePattern> = {
-  K: { steps: 0, pattern: MOVE_PATTERNS.ALL },
-  Q: { steps: 7, pattern: MOVE_PATTERNS.ALL },
-  B: { steps: 7, pattern: MOVE_PATTERNS.DIAGONAL },
-  N: { steps: 1, pattern: MOVE_PATTERNS.L_SHAPE },
-  R: { steps: 7, pattern: MOVE_PATTERNS.PLUS_SHAPE },
-  P: { steps: 1, pattern: [[1, -1], [1, 1]] },
-  k: { steps: 0, pattern: MOVE_PATTERNS.ALL },
-  q: { steps: 7, pattern: MOVE_PATTERNS.ALL },
-  b: { steps: 7, pattern: MOVE_PATTERNS.DIAGONAL },
-  n: { steps: 1, pattern: MOVE_PATTERNS.L_SHAPE },
-  r: { steps: 7, pattern: MOVE_PATTERNS.PLUS_SHAPE },
-  p: { steps: 1, pattern: [[-1, -1], [-1, 1]] }
+  K: { steps: 0, patterns: MOVE_PATTERNS.ALL },
+  Q: { steps: 7, patterns: MOVE_PATTERNS.ALL },
+  B: { steps: 7, patterns: MOVE_PATTERNS.DIAGONAL },
+  N: { steps: 1, patterns: MOVE_PATTERNS.L_SHAPE },
+  R: { steps: 7, patterns: MOVE_PATTERNS.PLUS_SHAPE },
+  P: { steps: 1, patterns: [[1, -1], [1, 1]] },
+  k: { steps: 0, patterns: MOVE_PATTERNS.ALL },
+  q: { steps: 7, patterns: MOVE_PATTERNS.ALL },
+  b: { steps: 7, patterns: MOVE_PATTERNS.DIAGONAL },
+  n: { steps: 1, patterns: MOVE_PATTERNS.L_SHAPE },
+  r: { steps: 7, patterns: MOVE_PATTERNS.PLUS_SHAPE },
+  p: { steps: 1, patterns: [[-1, -1], [-1, 1]] }
 };
-
-
-export const FILES = 'abcdefgh';
-export const RANKS = '12345678';
-
-
 
 // Map player colors to castles
 export const CASTLE_MOVES: Record<Color, { kingside: CastleMove, queenside: CastleMove }> = {
@@ -290,6 +280,7 @@ export const INITIAL_GAMESTATE: FEN = {
   fullMoves: 0
 };
 
+// Define array of all chessboard squares
 export const CHESSBOARD_SQUARES: Square[] = Object.keys(SQUARE_TO_INDEX) as Square[];
 
 // Returns the opposite player color of the given color
@@ -297,29 +288,40 @@ export function getEnemyColor(color: Color): Color {
   return color == Color.WHITE ? Color.BLACK : Color.WHITE;
 }
 
-// Converts a square index to the corresponding square
-export function gridIndexToSquare([r, f]: Pos): Square | null {
+// Converts a grid index to the corresponding square or null if there is no square at the given index
+export function gridIndexToSquare(index: Pos): Square | null {
+  const [r, f] = index;
   if (r < 0 || r > 7 || f < 0 || f > 7) return null;
-  return FILES[f] + RANKS[r] as Square;
+  return squareIndexToSquare(index as SquareIndex);
 }
 
+// Converts a square index to the corresponding square
 export function squareIndexToSquare([r, f]: SquareIndex): Square {
-  return FILES[f] + RANKS[r] as Square;
-}
-
-export function squareToWorldXY(square: Square, tilemap: Phaser.Tilemaps.Tilemap): Phaser.Math.Vector2 {
-  const [r, c] = SQUARE_TO_INDEX[square];
-  return tilemap.tileToWorldXY(c, 7 - r) as Phaser.Math.Vector2;
-}
-
-export function worldXYToSquare(x: number, y: number, tilemap: Phaser.Tilemaps.Tilemap): Square | null {
-  const { x: c, y: r } = tilemap.worldToTileXY(x, y) as Phaser.Math.Vector2;
-  return gridIndexToSquare([7 - r, c]);
+  return 'abcdefgh'[f] + '12345678'[r] as Square;
 }
 
 // Moves a square by a given offset
-export function moveSquare(square: Square, [dr, dc]: SquareIndex): Square | null {
+export function moveSquare(square: Square, [dr, dc]: SquareOffset, steps: number = 1): Square | null {
   const [r, c] = SQUARE_TO_INDEX[square];
-  return gridIndexToSquare([r + dr, c + dc]);
+  return gridIndexToSquare([r + steps * dr, c + steps * dc]);
 }
 
+export const RANKS: Record<string, Record<Color, string>> = {
+  back: {
+    [Color.WHITE]: '1',
+    [Color.BLACK]: '8'
+  },
+  second: {
+    [Color.WHITE]: '2',
+    [Color.BLACK]: '7'
+  },
+  lastRank: {
+    [Color.WHITE]: '8',
+    [Color.BLACK]: '1'
+  }
+};
+
+// // Convert a piece color and piece type to the algebraic notation of the piece
+// export function getPieceFromColorType(type: PieceType, color: Color): Piece {
+//   return color == Color.WHITE ? type.toUpperCase() as Piece : type;
+// }
