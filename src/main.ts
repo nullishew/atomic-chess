@@ -2,6 +2,7 @@ import { Game as MainGame } from './scenes/Game';
 import { Preloader } from './scenes/Preloader';
 import { Game, Types } from "phaser";
 
+// Configure game window properties
 const config: Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: 192,
@@ -21,4 +22,4 @@ const config: Types.Core.GameConfig = {
 
 export default new Game(config);
 
-export const chessTileSize = 16;
+export const chessTileSize = 16; // Define the size of each tile on the chessboard

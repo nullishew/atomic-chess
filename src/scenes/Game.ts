@@ -56,7 +56,7 @@ export class Game extends Scene {
     // Add pointer input to keep track of the square the pointer is currently hovering over
     this.input.on('pointermove', () => {
       const { x, y } = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
-      this.pointerSquare = worldXYToSquare(x, y, this.chessGUI.chessboardTilemap);
+      this.pointerSquare = worldXYToSquare(x, y, this.chessGUI.chessboardTilemapLayer);
     });
 
     // Add pointer input to indicate the square the pointer is currently hovering over
@@ -86,6 +86,7 @@ export class Game extends Scene {
     });
   }
 
+  // Method to create a promotion menu for pawns
   createPromotionMenu(color: Color): GameObjects.Container {
     const container = this.add.container(0, 0);
     const background = this.add.graphics()
@@ -108,6 +109,7 @@ export class Game extends Scene {
     return container.add([background, ...buttons]);
   }
 
+  // Method to create a game over menu
   createGameOverMenu(text: string, image: GameObjects.Image | null): GameObjects.Container {
     const container = this.add.container(0, 0);
     const background = this.add.graphics()
@@ -194,15 +196,14 @@ export class Game extends Scene {
   }
 }
 
-// Converts a square to the corresponding world position based on the given tilemap
-
-export function squareToWorldXY(square: Square, tilemap: Phaser.Tilemaps.Tilemap): Phaser.Math.Vector2 {
+// Converts a square to the corresponding world position based on the given tilemap layer
+export function squareToWorldXY(square: Square, tilemapLayer: Phaser.Tilemaps.TilemapLayer): Phaser.Math.Vector2 {
   const [r, c] = SQUARE_TO_INDEX[square];
-  return tilemap.tileToWorldXY(c, 7 - r) as Phaser.Math.Vector2;
-}// Converts a world position based on the given tilemap to the corresponding square or null if there is no square at the given position
-
-export function worldXYToSquare(x: number, y: number, tilemap: Phaser.Tilemaps.Tilemap): Square | null {
-  const { x: c, y: r } = tilemap.worldToTileXY(x, y) as Phaser.Math.Vector2;
-  return gridIndexToSquare([7 - r, c]);
+  return tilemapLayer.tileToWorldXY(c, 7 - r);
 }
 
+// Converts a world position based on the given tilemap layer to the corresponding square or null if there is no square at the given position
+export function worldXYToSquare(x: number, y: number, tilemapLayer: Phaser.Tilemaps.TilemapLayer): Square | null {
+  const { x: c, y: r } = tilemapLayer.worldToTileXY(x, y);
+  return gridIndexToSquare([7 - r, c]);
+}

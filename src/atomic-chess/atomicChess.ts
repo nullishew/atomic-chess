@@ -91,7 +91,6 @@ export type Piece =
 // Define the structure of a Chessboard
 export type Chessboard = Record<Square, Piece | null>;
 
-
 // Define the structure for castling rights
 export type CastlingRights = Record<Color, Record<CastleType, boolean>>;
 
