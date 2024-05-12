@@ -34,7 +34,7 @@ export class Game extends Scene {
     this.isGameOver = false;
 
     // Initialize atomic chess game
-    this.chessLogic = new AtomicChessLogic(structuredClone(INITIAL_GAMESTATE), this);
+    this.chessLogic = new AtomicChessLogic(structuredClone(INITIAL_GAMESTATE));
 
     // Initialize atomic chess gui
     this.chessGUI = new AtomicChessGUI(this, chessTileSize, 100);

@@ -3,7 +3,7 @@ import { Square, CHESSBOARD_SQUARES, Piece, Chessboard, INITIAL_CHESSBOARD_POSIT
 import { squareToWorldXY } from "../scenes/Game";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { ChessPiece } from "./ChessPieceSprite";
-import { AtomicChessResponse } from "./chessboard";
+import { MoveData } from "./chessboard";
 
 export class AtomicChessGUI {
   scene: Scene;
@@ -118,7 +118,7 @@ export class AtomicChessGUI {
     }
   }
 
-  update({ actions }: AtomicChessResponse) {
+  update({ actions }: MoveData) {
     for (const { move: { from, to }, explode } of actions) {
       const sprite = this.sprites[from];
       if (!sprite) continue;

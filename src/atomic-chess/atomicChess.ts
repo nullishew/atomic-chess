@@ -49,7 +49,7 @@ export interface Move {
 export interface CastleMove {
   kingMove: Move; // Move of the king
   rookMove: Move; // Move of the rook
-  squaresBetween: Square[]; // Squares between the king and rook
+  between: Square[]; // Squares between the king and rook
 }
 
 // Define the structure of a move pattern
@@ -73,6 +73,7 @@ export type Square =
 type Index = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export type SquareIndex = [Index, Index];
 
+// Define the possible grid offsets of each move on a chessboard
 type Offset = -7 | -6 | -5 | -4 | -3 | -2 | -1 | Index;
 export type SquareOffset = [Offset, Offset];
 
@@ -230,27 +231,58 @@ export const CASTLE_MOVES: Record<Color, { kingside: CastleMove, queenside: Cast
     kingside: {
       kingMove: { from: 'e1', to: 'g1' },
       rookMove: { from: 'h1', to: 'f1' },
-      squaresBetween: ['f1', 'g1'],
+      between: ['f1', 'g1'],
     },
     queenside: {
       kingMove: { from: 'e1', to: 'c1' },
       rookMove: { from: 'a1', to: 'd1' },
-      squaresBetween: ['d1', 'c1', 'b1'],
+      between: ['d1', 'c1', 'b1'],
     },
   },
   [Color.BLACK]: {
     kingside: {
       kingMove: { from: 'e8', to: 'g8' },
       rookMove: { from: 'h8', to: 'f8' },
-      squaresBetween: ['f8', 'g8'],
+      between: ['f8', 'g8'],
     },
     queenside: {
       kingMove: { from: 'e8', to: 'c8' },
       rookMove: { from: 'a8', to: 'd8' },
-      squaresBetween: ['d8', 'c8', 'b8'],
+      between: ['d8', 'c8', 'b8'],
     },
   },
 };
+
+// Store promotion squares for pawns of each color
+export const PROMOTION_SQUARES: Record<Color, Square[]> = {
+  [Color.WHITE]: ['a8', 'b8', 'c8', 'd8', 'e8', 'f8', 'g8', 'h8'],
+  [Color.BLACK]: ['a1', 'b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'h1']
+}
+
+// Store double moves for pawns of each color
+export const PAWN_DOUBLE_MOVES: Record<Color, { [key: string]: { from: Square; between: Square; to: Square } }> = {
+  [Color.WHITE]: {
+    'a2': { from: 'a2', between: 'a3', to: 'a4' },
+    'b2': { from: 'b2', between: 'b3', to: 'b4' },
+    'c2': { from: 'c2', between: 'c3', to: 'c4' },
+    'd2': { from: 'd2', between: 'd3', to: 'd4' },
+    'e2': { from: 'e2', between: 'e3', to: 'e4' },
+    'f2': { from: 'f2', between: 'f3', to: 'f4' },
+    'g2': { from: 'g2', between: 'g3', to: 'g4' },
+    'h2': { from: 'h2', between: 'h3', to: 'h4' }
+  },
+  [Color.BLACK]: {
+    'a7': { from: 'a7', between: 'a6', to: 'a5' },
+    'b7': { from: 'b7', between: 'b6', to: 'b5' },
+    'c7': { from: 'c7', between: 'c6', to: 'c5' },
+    'd7': { from: 'd7', between: 'd6', to: 'd5' },
+    'e7': { from: 'e7', between: 'e6', to: 'e5' },
+    'f7': { from: 'f7', between: 'f6', to: 'f5' },
+    'g7': { from: 'g7', between: 'g6', to: 'g5' },
+    'h7': { from: 'h7', between: 'h6', to: 'h5' }
+  }
+};
+
 
 // Define initial chess position of a chess game
 export const INITIAL_CHESSBOARD_POSITION: Record<Square, Piece | null> = {
@@ -305,23 +337,3 @@ export function moveSquare(square: Square, [dr, dc]: SquareOffset, steps: number
   const [r, c] = SQUARE_TO_INDEX[square];
   return gridIndexToSquare([r + steps * dr, c + steps * dc]);
 }
-
-export const RANKS: Record<string, Record<Color, string>> = {
-  back: {
-    [Color.WHITE]: '1',
-    [Color.BLACK]: '8'
-  },
-  second: {
-    [Color.WHITE]: '2',
-    [Color.BLACK]: '7'
-  },
-  lastRank: {
-    [Color.WHITE]: '8',
-    [Color.BLACK]: '1'
-  }
-};
-
-// // Convert a piece color and piece type to the algebraic notation of the piece
-// export function getPieceFromColorType(type: PieceType, color: Color): Piece {
-//   return color == Color.WHITE ? type.toUpperCase() as Piece : type;
-// }

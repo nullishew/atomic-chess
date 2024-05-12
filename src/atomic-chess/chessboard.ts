@@ -2,7 +2,7 @@ import { Move, Square, Chessboard, Piece, CHESSBOARD_SQUARES, Color, SQUARE_TO_I
 import { canPromotePawnAt } from "./validator";
 
 // Defines a structure for providing information about the result of a move on an atomic chess board
-export interface AtomicChessResponse {
+export interface MoveData {
   result: Chessboard,
   moveType: MoveType,
   actions: {
@@ -29,7 +29,7 @@ export function isAdjacent(square1: Square, square2: Square) {
 }
 
 // Performs a standard, non capturing, move and returns information about the action
-export function standardMove(board: Chessboard, move: Move): AtomicChessResponse {
+export function standardMove(board: Chessboard, move: Move): MoveData {
   let result = structuredClone(board);
   movePiece(result, move);
   return {
@@ -40,7 +40,7 @@ export function standardMove(board: Chessboard, move: Move): AtomicChessResponse
 }
 
 // Moves a pawn two squares and returns information about the action
-export function moveDouble(board: Chessboard, move: Move): AtomicChessResponse {
+export function moveDouble(board: Chessboard, move: Move): MoveData {
   let result = structuredClone(board);
   movePiece(result, move);
   return {
@@ -51,7 +51,7 @@ export function moveDouble(board: Chessboard, move: Move): AtomicChessResponse {
 }
 
 // Performs a standard capture and returns information about the action
-export function capture(board: Chessboard, move: Move): AtomicChessResponse {
+export function capture(board: Chessboard, move: Move): MoveData {
   let result = structuredClone(board);
   const { to } = move;
   movePiece(result, move);
@@ -70,7 +70,7 @@ export function capture(board: Chessboard, move: Move): AtomicChessResponse {
 }
 
 // Performs an en passant capture and returns information about the action
-export function enPassant(board: Chessboard, move: Move): AtomicChessResponse {
+export function enPassant(board: Chessboard, move: Move): MoveData {
   let result = structuredClone(board);
   const { from, to } = move;
   const r1 = SQUARE_TO_INDEX[from][0];
@@ -93,7 +93,7 @@ export function enPassant(board: Chessboard, move: Move): AtomicChessResponse {
 }
 
 // Castles the specified player color to the specified side and returns information about the action
-export function castle(board: Chessboard, color: Color, castleSide: CastleType) : AtomicChessResponse {
+export function castle(board: Chessboard, color: Color, castleSide: CastleType) : MoveData {
   let result = structuredClone(board);
   const { kingMove, rookMove } = CASTLE_MOVES[color][castleSide];
   movePiece(result, kingMove);
@@ -137,6 +137,7 @@ function getSurroundingExplosions(board: Chessboard, square: Square): Square[] {
   return explosions;
 }
 
+// Checks if the specified player is in atomic check
 export function isAtomicCheck(board: Chessboard, activeColor: Color): boolean {
   const enemyColor = getEnemyColor(activeColor);
   const kingPos = findKing(board, activeColor);
@@ -160,10 +161,7 @@ export function isAtomicCheck(board: Chessboard, activeColor: Color): boolean {
   return false;
 }
 
+// Checks if the atomic chess position causes the specified player to lose
 export function isValidAtomicChessPosition(board: Chessboard, activeColor: Color): boolean {
   return findKing(board, activeColor) != null && !isAtomicCheck(board, activeColor);
 }
-
-
-
-
