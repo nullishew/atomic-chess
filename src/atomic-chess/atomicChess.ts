@@ -282,6 +282,12 @@ export const PAWN_DOUBLE_MOVES: Record<Color, { [key: string]: { from: Square; b
   }
 };
 
+// Store pieces that pawns of each color can promote to
+export const PROMOTABLE_PIECES: Record<Color, PromotablePiece[]> = {
+  [Color.WHITE]: ['Q', 'N', 'R', 'B'],
+  [Color.BLACK]: ['q', 'n', 'r', 'b']
+};
+
 
 // Define initial chess position of a chess game
 export const INITIAL_CHESSBOARD_POSITION: Record<Square, Piece | null> = {
