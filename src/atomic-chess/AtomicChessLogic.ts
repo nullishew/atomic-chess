@@ -1,6 +1,6 @@
-import { Square, FEN, Move, MoveType, GameOverType, Color, getEnemyColor, PromotablePiece, SQUARE_TO_INDEX, gridIndexToSquare, PIECE_TO_COLOR, CastleType, Piece, PIECE_TO_TYPE, PieceType } from "./atomicChess";
-import { ExternalMove, Flag, isCheckmate, isStalemate, legalMovesFrom, rookStartSquaresToCastleSide } from "./validator";
-import { findKing } from "./validator";
+import { Square, FEN, Move, GameOverType, Color, getEnemyColor, PromotablePiece, SQUARE_TO_GRID_INDEX, gridIndexToSquare, CastleSide } from "./atomicChess";
+import { ExternalMove, Flag, isCheckmate, isStalemate, legalMovesFrom } from "./atomicChess";
+import { findKing } from "./atomicChess";
 
 // Class that handles the game logic for Atomic Chess
 export class AtomicChessLogic {
@@ -65,8 +65,8 @@ export class AtomicChessLogic {
     this.switchTurn();
     if (flags.includes(Flag.DOUBLE)) {
       const { from, to } = moves[0];
-      const [r1, c] = SQUARE_TO_INDEX[from];
-      const r2 = SQUARE_TO_INDEX[to][0];
+      const [r1, c] = SQUARE_TO_GRID_INDEX[from];
+      const r2 = SQUARE_TO_GRID_INDEX[to][0];
       this.gameState.enPassantTargets.push(gridIndexToSquare([(r1 + r2) / 2, c]) as Square);
     }
     if (flags.includes(Flag.KING_MOVE)) {
@@ -74,15 +74,15 @@ export class AtomicChessLogic {
     }
     const enemyColor = getEnemyColor(color);
     if (flags.includes(Flag.KINGSIDE_ROOK_MOVE)) {
-      this.gameState.hasCastlingRights[color][CastleType.KINGSIDE] = false;
+      this.gameState.hasCastlingRights[color][CastleSide.KINGSIDE] = false;
     } else if (flags.includes(Flag.QUEENSIDE_ROOK_MOVE)) {
-      this.gameState.hasCastlingRights[color][CastleType.QUEENSIDE] = false;
+      this.gameState.hasCastlingRights[color][CastleSide.QUEENSIDE] = false;
     }
     if (flags.includes(Flag.KINGSIDE_ROOK_CAPTURED)) {
-      this.gameState.hasCastlingRights[enemyColor][CastleType.KINGSIDE] = false;
+      this.gameState.hasCastlingRights[enemyColor][CastleSide.KINGSIDE] = false;
     }
     if (flags.includes(Flag.QUEENSIDE_ROOK_CAPTURED)) {
-      this.gameState.hasCastlingRights[enemyColor][CastleType.QUEENSIDE] = false;
+      this.gameState.hasCastlingRights[enemyColor][CastleSide.QUEENSIDE] = false;
     }
     if (flags.includes(Flag.PAWN_MOVE) || flags.includes(Flag.CAPTURE)) {
       this.gameState.halfMoves = 0;

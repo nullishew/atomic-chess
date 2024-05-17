@@ -1,9 +1,9 @@
 import { Scene } from "phaser";
 import { AtomicChessGUI } from "../atomic-chess/AtomicChessGUI";
 import { AtomicChessLogic } from "../atomic-chess/AtomicChessLogic";
-import { Square, INITIAL_GAMESTATE, PIECE_TO_COLOR, PromotablePiece, Move, MoveType, SQUARE_TO_INDEX, gridIndexToSquare } from "../atomic-chess/atomicChess";
+import { Square, INITIAL_GAMESTATE, PIECE_TO_COLOR, PromotablePiece, Move, MoveType, SQUARE_TO_GRID_INDEX, gridIndexToSquare } from "../atomic-chess/atomicChess";
 import { chessTileSize } from "../main";
-import { Flag, legalMovesFrom } from "../atomic-chess/validator";
+import { Flag, legalMovesFrom } from "../atomic-chess/atomicChess";
 
 // Game scene class definition
 export class Game extends Scene {
@@ -144,7 +144,7 @@ export class Game extends Scene {
 
 // Converts a square to the corresponding world position based on the given tilemap layer
 export function squareToWorldXY(square: Square, tilemapLayer: Phaser.Tilemaps.TilemapLayer): Phaser.Math.Vector2 {
-  const [r, c] = SQUARE_TO_INDEX[square];
+  const [r, c] = SQUARE_TO_GRID_INDEX[square];
   return tilemapLayer.tileToWorldXY(c, 7 - r);
 }
 

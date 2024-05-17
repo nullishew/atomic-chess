@@ -3,7 +3,7 @@ import { Square, CHESSBOARD_SQUARES, Piece, Chessboard, INITIAL_CHESSBOARD_POSIT
 import { squareToWorldXY } from "../scenes/Game";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { ChessPiece } from "./ChessPieceSprite";
-import { ExternalMove } from "./validator";
+import { ExternalMove } from "./atomicChess";
 
 // Define a class to manage the graphical user interface of an atomic chess game
 export class AtomicChessGUI {
