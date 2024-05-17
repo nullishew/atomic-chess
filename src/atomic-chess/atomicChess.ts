@@ -7,10 +7,8 @@ export enum Color {
 // Enumerate the possible types of moves
 export enum MoveType {
   CAPTURE = 'standard capture',
-  DOUBLE = 'pawn double move',
   EN_PASSANT = 'en passant',
   KINGSIDE_CASTLE = 'kingside castle',
-  PROMOTION = 'promotion',
   QUEENSIDE_CASTLE = 'queenside castle',
   STANDARD_MOVE = 'standard move',
 }
