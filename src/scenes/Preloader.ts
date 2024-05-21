@@ -31,6 +31,8 @@ export class Preloader extends Scene {
     this.load.image(ASSETS.PARTICLE.key, ASSETS.PARTICLE.src);
     this.load.image(ASSETS.RETRY.key, ASSETS.RETRY.src);
     this.load.spritesheet(ASSETS.CHESS_PIECES.key, ASSETS.CHESS_PIECES.src, { frameWidth: chessTileSize, frameHeight: chessTileSize });
+    this.load.image(ASSETS.CHESS_CAPTURE_INDICATOR.key, ASSETS.CHESS_CAPTURE_INDICATOR.src);
+    this.load.image(ASSETS.CHESS_MOVE_INDICATOR.key, ASSETS.CHESS_MOVE_INDICATOR.src);
   }
 
   // Switch the scene to the Game once the assets have been loaded

@@ -10,7 +10,7 @@ export class ChessPiece extends GameObjects.Sprite {
   }
 
   // Moves a chess piece and explodes it if specified
-  move(x: number, y: number, explode: boolean, duration: number) {
+  move(x: number, y: number, duration: number) {
     // Create a tween to animate the piece movement
     const tween = this.scene.tweens.add({
       targets: this,
@@ -20,12 +20,12 @@ export class ChessPiece extends GameObjects.Sprite {
       duration: duration,
     });
 
-    // When the tween completes, set the position of the piece and destroy it if explode is true
-    tween.on('complete', () => {
-      this.setPosition(x, y);
-      if (!explode) return;
-      this.destroy();
-    });
+    // When the tween completes, set the position of the piece
+    tween.on('complete', () => this.setPosition(x, y));
+  }
+
+  explode() {
+    this.destroy();
   }
 
   // Update the image of a chess piece that gets promoted

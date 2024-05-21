@@ -1,25 +1,93 @@
 import { Scene, Tilemaps, GameObjects, Sound } from "phaser";
-import { Square, CHESSBOARD_SQUARES, Piece, Chessboard, INITIAL_CHESSBOARD_POSITION, PromotablePiece, Color, GameOverType, PROMOTABLE_PIECES, moveSquare } from "./atomicChess";
-import { squareToWorldXY } from "../scenes/Game";
+import { Square, CHESSBOARD_SQUARES, Piece, Chessboard, INITIAL_CHESSBOARD_POSITION, PromotablePiece, Color, GameOverType, PROMOTABLE_PIECES, MoveType, CASTLE_MOVES, CastleSide, getFile, getRank, X88_TO_SQUARE, SQUARE_TO_X88 } from "./atomicChess";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { ChessPiece } from "./ChessPieceSprite";
-import { ExternalMove } from "./atomicChess";
+import { MoveResult } from "./atomicChess";
 
 // Define a class to manage the graphical user interface of an atomic chess game
 export class AtomicChessGUI {
   scene: Scene; // Scene the gui is part of
+
   chessboardTilemap: Tilemaps.Tilemap; // Tilemap to create tilemap layers
   chessboardTilemapLayer: Tilemaps.TilemapLayer; // Tilemap layer to display chessboard squares and map squares to world positions
+  moveIndicatorTilemapLayer: Tilemaps.TilemapLayer;
+  captureIndicatorTilemapLayer: Tilemaps.TilemapLayer;
+
   sprites: Record<Square, ChessPiece | null>; // Map squares to corresponding chess piece sprites
-  pointerTileIndicator: GameObjects.Rectangle; // Graphics objects to indicate the tile currently hovered over by the pointer
-  selectedTileIndicator: GameObjects.Rectangle; // Graphics objects to indicate the selected tile
-  moveIndicators: Record<Square, GameObjects.Arc>; // Graphics objects to indicate possible moves that are not direct captures
-  captureIndicators: Record<Square, GameObjects.Arc>;  // Graphics objects to indicate possible direct captures
-  explosionSound: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound; // Explosion sound
+
+  pointerTileOutline: GameObjects.Rectangle; // Graphics objects to indicate the tile currently hovered over by the pointer
+  selectedTileOutline: GameObjects.Rectangle; // Graphics objects to indicate the selected tile
+
   explosionParticles: GameObjects.Particles.ParticleEmitter; // Explosion particles
+  explosionSound: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound; // Explosion sound
+
   pieceMoveTime: number; // Duration of animation for moving and exploding pieces
+
   promotionMenus: Record<Color, GameObjects.Container>;
   gameOverMenus: Record<GameOverType, GameObjects.Container>;
+
+
+  addTileOutline() {
+    const tileSize = this.chessboardTilemap.tileHeight;
+    return this.scene.add.rectangle(0, 0, tileSize, tileSize).setStrokeStyle(tileSize * .125, 0xffffff, 1)
+      .setOrigin(0)
+      .setVisible(false);
+  }
+
+  addChessboard(tileSize: number) {
+    const tileData = [
+      [0, 1, 0, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 0],
+      [0, 1, 0, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 0],
+      [0, 1, 0, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 0],
+      [0, 1, 0, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 0]
+    ];
+    const map = this.scene.make.tilemap({ data: tileData, tileWidth: tileSize, tileHeight: tileSize });
+    const chessSquareTileset = map.addTilesetImage(ASSETS.CHESSBOARD_TILES.key) as Tilemaps.Tileset;
+    const x = -4 * tileSize;
+    const y = -4 * tileSize;
+    const chessTileLayer = map.createLayer(0, chessSquareTileset, x, y) as Tilemaps.TilemapLayer;
+    const captureTileset = map.addTilesetImage(ASSETS.CHESS_CAPTURE_INDICATOR.key) as Tilemaps.Tileset;
+    const captureIndicatorLayer = (map.createBlankLayer('Capture Indicators', captureTileset, x, y) as Tilemaps.TilemapLayer)
+      .fill(0, 0, 0, 8, 8);
+    const moveTileset = map.addTilesetImage(ASSETS.CHESS_MOVE_INDICATOR.key) as Tilemaps.Tileset;
+    const moveIndicatorLayer = (map.createBlankLayer('Move Indicators', moveTileset, x, y) as Tilemaps.TilemapLayer)
+      .fill(0, 0, 0, 8, 8);
+    return { map: map, chessTileLayer: chessTileLayer, captureIndicatorLayer: captureIndicatorLayer, moveIndicatorLayer: moveIndicatorLayer };
+  }
+
+  addChessboardOutline(lineWidth: number, glowStrength: number, glowDistance: number) {
+    const { width, height } = this.chessboardTilemapLayer;
+    const outline = this.scene.add.rectangle(0, 0, width + lineWidth, height + lineWidth, 0x252525);
+    outline.postFX.addGlow(0xffffff, glowStrength, 0, false, 1, glowDistance);
+    return outline;
+  }
+
+  // Function to create sprites for all chess pieces based on the specified board
+  addChessPieces(board: Chessboard) {
+    const container = this.scene.add.container();
+    const sprites: Record<Square, ChessPiece | null> = {} as Record<Square, ChessPiece | null>;
+    for (const square of CHESSBOARD_SQUARES) {
+      const piece = board[square];
+      if (!piece) {
+        sprites[square] = null;
+        continue;
+      }
+      const sprite = this.addChessPiece(piece, square);
+      sprites[square] = sprite;
+      container.add(sprite);
+    }
+    return { container: container, sprites: sprites };
+  }
+
+  // Function to create a sprite for a chess piece
+  addChessPiece(piece: Piece, square: Square) {
+    const { x, y } = this.squareToWorldXY(square);
+    return this.scene.add.existing(new ChessPiece(this.scene, PIECE_TO_TEXTURE_FRAME[piece], x, y));
+  }
 
   constructor({ scene, tileSize, pieceMoveTime, gameOverMenuCallback: gameOverCallback }: { scene: Scene; tileSize: number; pieceMoveTime: number; gameOverMenuCallback: () => any; }) {
     this.scene = scene;
@@ -29,41 +97,23 @@ export class AtomicChessGUI {
     // Center game view
     scene.cameras.main.centerOn(0, 0);
 
-
     // Add chessboard
-    ({ map: this.chessboardTilemap, layer: this.chessboardTilemapLayer } = createChessboard(this.scene, tileSize));
+    ({
+      map: this.chessboardTilemap,
+      chessTileLayer: this.chessboardTilemapLayer,
+      captureIndicatorLayer: this.captureIndicatorTilemapLayer,
+      moveIndicatorLayer: this.moveIndicatorTilemapLayer
+    } = this.addChessboard(tileSize));
 
-    const { width, height } = this.chessboardTilemapLayer;
-    const size = tileSize * .25;
-    const outline = scene.add.rectangle(0, 0, width + size, height + size, 0x252525);
-    outline.postFX.addGlow(0xffffff, .125 * tileSize, 0, false, 1, .375 * tileSize);
+    const outline = this.addChessboardOutline(tileSize * .25, .125 * tileSize, .375 * tileSize);
 
     // Add chess pieces
-    const chessPieceContainer = scene.add.container();
-    this.sprites = createChessPieceSprites(scene, this.chessboardTilemapLayer, chessPieceContainer, structuredClone(INITIAL_CHESSBOARD_POSITION));
+    let chessPieceContainer;
+    ({ sprites: this.sprites, container: chessPieceContainer } = this.addChessPieces(INITIAL_CHESSBOARD_POSITION));
 
     // Add tile indicators (mouse hover, selected)
-    const tileIndicatorContainer = scene.add.container();
-    this.pointerTileIndicator = scene.add.rectangle(0, 0, tileSize, tileSize).setStrokeStyle(tileSize * .125, 0xffffff, 1).setOrigin(0).setVisible(false);
-    this.selectedTileIndicator = scene.add.rectangle(0, 0, tileSize, tileSize).setStrokeStyle(tileSize * .125, 0xffffff, 1).setOrigin(0).setVisible(false);
-    tileIndicatorContainer.add([this.pointerTileIndicator, this.selectedTileIndicator]);
-
-    // Add action indicators (move, capture)
-    const actionIndicatorContainer = scene.add.container();
-    this.captureIndicators = {} as Record<Square, GameObjects.Arc>;
-    this.moveIndicators = {} as Record<Square, GameObjects.Arc>;
-    for (const square of CHESSBOARD_SQUARES) {
-      let { x, y } = squareToWorldXY(square, this.chessboardTilemapLayer);
-      x += .5 * tileSize;
-      y += .5 * tileSize;
-      this.captureIndicators[square] = scene.add.circle(x, y, .4375 * tileSize)
-        .setStrokeStyle(.125 * tileSize, 0x000000, .3);
-      this.moveIndicators[square] = scene.add.circle(x, y, .125 * tileSize, 0x000000, .3);
-      actionIndicatorContainer.add([
-        this.captureIndicators[square].setVisible(false),
-        this.moveIndicators[square].setVisible(false)
-      ]);
-    }
+    this.pointerTileOutline = this.addTileOutline();
+    this.selectedTileOutline = this.addTileOutline();
 
     // Add explosion particles
     this.explosionParticles = scene.add.particles(0, 0, ASSETS.PARTICLE.key, {
@@ -80,19 +130,21 @@ export class AtomicChessGUI {
 
     // Create menus for when the game ends
     this.gameOverMenus = {
-      [GameOverType.WHITE_WIN]: this.createGameOverMenu('Winner:', [scene.add.image(0, 0, ASSETS.CHESS_PIECES.key, 0).setScale(2)], gameOverCallback).setVisible(false),
-      [GameOverType.BLACK_WIN]: this.createGameOverMenu('Winner:', [scene.add.image(0, 0, ASSETS.CHESS_PIECES.key, 1).setScale(2)], gameOverCallback).setVisible(false),
-      [GameOverType.DRAW]: this.createGameOverMenu('Draw', [], gameOverCallback).setVisible(false),
-      [GameOverType.STALEMATE]: this.createGameOverMenu('Stalemate', [], gameOverCallback).setVisible(false)
-    }
+      [GameOverType.WHITE_WIN]: this.createGameOverMenu('Winner:', [scene.add.image(0, 0, ASSETS.CHESS_PIECES.key, 0).setScale(2)], gameOverCallback).setVisible(false).setAlpha(0),
+      [GameOverType.BLACK_WIN]: this.createGameOverMenu('Winner:', [scene.add.image(0, 0, ASSETS.CHESS_PIECES.key, 1).setScale(2)], gameOverCallback).setVisible(false).setAlpha(0),
+      [GameOverType.DRAW]: this.createGameOverMenu('Draw', [], gameOverCallback).setVisible(false).setAlpha(0),
+      [GameOverType.STALEMATE]: this.createGameOverMenu('Stalemate', [], gameOverCallback).setVisible(false).setAlpha(0),
+    };
 
     // Define render order
     const gameLayer = scene.add.layer([
       outline,
       this.chessboardTilemapLayer,
       chessPieceContainer,
-      tileIndicatorContainer,
-      actionIndicatorContainer,
+      this.pointerTileOutline,
+      this.selectedTileOutline,
+      this.moveIndicatorTilemapLayer,
+      this.captureIndicatorTilemapLayer,
       this.explosionParticles
     ]);
 
@@ -103,12 +155,14 @@ export class AtomicChessGUI {
       this.gameOverMenus[GameOverType.STALEMATE],
     ]);
 
+
+
   }
 
   // Method to create a promotion menu for pawns
   createPromotionMenu(color: Color, square: Square, callback: (piece: PromotablePiece) => any): GameObjects.Container {
     const scene = this.scene;
-    const { x, y } = squareToWorldXY(square, this.chessboardTilemapLayer);
+    const { x, y } = this.squareToWorldXY(square);
     const tileSize = this.chessboardTilemap.tileHeight;
     const container = scene.add.container(x, y);
     const buttonData = PROMOTABLE_PIECES[color].map((piece, i) => ({
@@ -156,113 +210,107 @@ export class AtomicChessGUI {
     ]);
   }
 
-  // Function to create explosion effect and play explosion sound
-  explode(x: number, y: number) {
-    this.explosionParticles.explode(50, x, y);
-    this.scene.cameras.main.shake(500, .01);
-    this.explosionSound.play();
-  }
-
   // Method to highlight a square when hovered over
   highlightSquare(square: Square | null) {
     if (!square) {
-      this.pointerTileIndicator.visible = false;
+      this.pointerTileOutline.visible = false;
       return;
     }
-    const { x, y } = squareToWorldXY(square, this.chessboardTilemapLayer);
-    this.pointerTileIndicator.setPosition(x, y)
+    const { x, y } = this.squareToWorldXY(square);
+    this.pointerTileOutline.setPosition(x, y)
       .setVisible(true);
   }
 
   // Method to select a square
   selectSquare(square: Square) {
-    const { x, y } = squareToWorldXY(square, this.chessboardTilemapLayer);
-    this.selectedTileIndicator.setPosition(x, y)
+    const { x, y } = this.squareToWorldXY(square);
+    this.selectedTileOutline.setPosition(x, y)
       .setVisible(true);
   }
 
   // Method to deselect a square
   deselectSquare() {
-    this.selectedTileIndicator.visible = false;
+    this.selectedTileOutline.visible = false;
   }
 
   indicateValidMoves({ captures, moves }: { captures: Square[]; moves: Square[]; }) {
-    for (const square of CHESSBOARD_SQUARES) {
-      this.captureIndicators[square].visible = false;
-      this.moveIndicators[square].visible = false;
-    }
-    captures.forEach(square => this.captureIndicators[square].visible = true)
-    moves.forEach(square => this.moveIndicators[square].visible = true);
+    [this.captureIndicatorTilemapLayer, this.moveIndicatorTilemapLayer].flatMap(layer => layer.getTilesWithin(0, 0, 8, 8))
+      .forEach(tile => tile?.setVisible(false));
+    captures.map(square => this.squareToTileXY(square))
+      .forEach(({ x, y }) => this.captureIndicatorTilemapLayer.getTileAt(x, y)?.setVisible(true));
+    moves.map(square => this.squareToTileXY(square))
+      .forEach(({ x, y }) => this.moveIndicatorTilemapLayer.getTileAt(x, y)?.setVisible(true));
+  }
+
+  movePiece(from: Square, to: Square) {
+    const { x, y } = this.squareToWorldXY(to);
+    this.sprites[from]?.move(x, y, this.pieceMoveTime);
+    this.sprites[to] = this.sprites[from];
+    this.sprites[from] = null;
+  }
+
+  explodePiece(square: Square) {
+    const sprite = this.sprites[square];
+    if (!sprite) return;
+    this.sprites[square] = null;
+    this.scene.time.addEvent({
+      delay: this.pieceMoveTime,
+      callback: () => {
+        const { x, y } = sprite;
+        sprite.explode();
+        this.explosionParticles.explode(50, x, y);
+        this.scene.cameras.main.shake(500, .01);
+        this.explosionSound.play();
+      }
+    });
   }
 
   // Method to update GUI based on game actions
-  update({ actions }: ExternalMove) {
-    for (const { move: { from, to }, explode } of actions) {
-      const sprite = this.sprites[from];
-      if (!sprite) continue;
-      const { x, y } = squareToWorldXY(to, this.chessboardTilemapLayer);
-      sprite.move(x, y, explode, this.pieceMoveTime);
-      if (!explode) continue;
-      this.scene.time.addEvent({
-        delay: this.pieceMoveTime,
-        callback: () => this.explode(x, y),
-      });
-    }
-    for (const { move: { from, to }, explode } of actions) {
-      if (to != from) {
-        this.sprites[to] = this.sprites[from];
-        this.sprites[from] = null;
-      }
+  update({ color, moveType, captures, explode, from, to }: MoveResult) {
+    captures.forEach(this.explodePiece.bind(this));
+    if (moveType == MoveType.KINGSIDE_CASTLE || moveType == MoveType.QUEENSIDE_CASTLE) {
+      const { kingMove, rookMove } = CASTLE_MOVES[color][moveType == MoveType.KINGSIDE_CASTLE ? CastleSide.KINGSIDE : CastleSide.QUEENSIDE];
+      this.movePiece(kingMove.from, kingMove.to);
+      this.movePiece(rookMove.from, rookMove.to);
+    } else {
+      this.movePiece(from, to);
       if (explode) {
-        this.sprites[to] = null;
+        this.explodePiece(to);
       }
     }
   }
 
-  // Method to promote a chess piece sprite
+  showGameOverMenu(gameOverType: GameOverType) {
+    this.scene.tweens.add({
+      targets: this.gameOverMenus[gameOverType].setVisible(true),
+      duration: 1000,
+      delay: 1000,
+      alpha: { from: 0, to: 1 },
+      ease: 'sine.in',
+    });
+  }
+
   promoteSprite(square: Square, piece: PromotablePiece) {
     this.sprites[square]?.promote(piece);
   }
-}
 
-// Function to create chessboard tilemap
-function createChessboard(scene: Scene, tileSize: number): { map: Tilemaps.Tilemap, layer: Tilemaps.TilemapLayer } {
-  const data = [
-    [0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0],
-    [0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0],
-    [0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0],
-    [0, 1, 0, 1, 0, 1, 0, 1],
-    [1, 0, 1, 0, 1, 0, 1, 0]
-  ];
-  const map = scene.make.tilemap({ data: data, tileWidth: tileSize, tileHeight: tileSize });
-  const tileset = map.addTilesetImage(ASSETS.CHESSBOARD_TILES.key) as Tilemaps.Tileset;
-  const layer = map.createLayer(0, tileset, 0, 0) as Tilemaps.TilemapLayer;
-  const { x, y } = layer.getBottomRight();
-  layer.setPosition(-.5 * x, -.5 * y);
-  return { map: map, layer: layer };
-}
-
-// Function to create a sprite for a chess piece
-function createChessPieceSprite(scene: Scene, piece: Piece, x: number, y: number): ChessPiece {
-  return scene.add.existing(new ChessPiece(scene, PIECE_TO_TEXTURE_FRAME[piece], x, y));
-}
-
-// Function to create sprites for all chess pieces based on the specified board
-function createChessPieceSprites(scene: Scene, tilemapLayer: Tilemaps.TilemapLayer, container: GameObjects.Container, board: Chessboard): Record<Square, ChessPiece | null> {
-  const sprites: Record<Square, ChessPiece | null> = {} as Record<Square, ChessPiece | null>;
-  for (const square of CHESSBOARD_SQUARES) {
-    const piece = board[square];
-    if (!piece) {
-      sprites[square] = null;
-      continue;
-    }
-    const { x, y } = squareToWorldXY(square, tilemapLayer);
-    const sprite = createChessPieceSprite(scene, piece, x, y);
-    sprites[square] = sprite;
-    container.add(sprite);
+  squareToTileXY(square: Square): Phaser.Types.Math.Vector2Like {
+    const index = SQUARE_TO_X88[square];
+    return { x: getFile(index), y: 7 - getRank(index) };
   }
-  return sprites;
+
+  tileXYToSquare(x: number, y: number): Square | null {
+    return X88_TO_SQUARE[16 * (7 - y) + x] ?? null;
+  }
+
+  squareToWorldXY(square: Square): Phaser.Math.Vector2 {
+    const { x, y } = this.squareToTileXY(square);
+    return this.chessboardTilemapLayer.tileToWorldXY(x, y);
+  }
+
+  worldXYToSquare(x: number, y: number): Square | null {
+    const { x: tileX, y: tileY } = this.chessboardTilemapLayer.worldToTileXY(x, y);
+    return this.tileXYToSquare(tileX, tileY);
+  }
+
 }

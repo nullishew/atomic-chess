@@ -1,5 +1,5 @@
-import { Square, FEN, Move, GameOverType, Color, getEnemyColor, PromotablePiece, SQUARE_TO_GRID_INDEX, gridIndexToSquare, CastleSide } from "./atomicChess";
-import { ExternalMove, Flag, isCheckmate, isStalemate, legalMovesFrom } from "./atomicChess";
+import { Square, FEN, Move, GameOverType, Color, PromotablePiece, CastleSide, ENEMY_COLOR } from "./atomicChess";
+import { MoveResult, Flag, isCheckmate, isStalemate, getLegalMovesFrom } from "./atomicChess";
 import { findKing } from "./atomicChess";
 
 // Class that handles the game logic for Atomic Chess
@@ -11,9 +11,10 @@ export class AtomicChessLogic {
   }
 
   // Attempts to make a move on the board, updates the game state accordingly, and returns information about successful moves or null if it is not a valid move
-  tryMove({ from, to }: Move): ExternalMove | null {
-    const legalMove = legalMovesFrom(this.gameState, from).find(move => move.to == to);
+  tryMove({ from, to }: Move): MoveResult | null {
+    const legalMove = getLegalMovesFrom(this.gameState, from).find(move => move.to == to);
     if (!legalMove) return null;
+    this.switchTurn();
     this.updateFlags(legalMove);
     this.gameState.board = legalMove.result;
     return legalMove;
@@ -35,8 +36,8 @@ export class AtomicChessLogic {
 
   // Check if the specified player has won
   isWin(activeColor: Color) {
-    const inactiveColor = getEnemyColor(activeColor);
-    return isCheckmate(this.gameState, inactiveColor) || !findKing(this.gameState.board, inactiveColor);
+    const enemyColor = ENEMY_COLOR[activeColor];
+    return isCheckmate(this.gameState, enemyColor) || !findKing(this.gameState.board, enemyColor);
   }
 
   // Check for draw by failure to progress the game by either advancing pawns or failure to capture. Usually occurs in endgames that result in king shuffles and bishop shuffles
@@ -55,38 +56,25 @@ export class AtomicChessLogic {
     if (this.gameState.activeColor == Color.BLACK) {
       this.gameState.fullMoves++;
     }
-    this.gameState.activeColor = getEnemyColor(this.gameState.activeColor);
+    this.gameState.activeColor = ENEMY_COLOR[this.gameState.activeColor];
     this.gameState.enPassantTargets = [];
   }
 
-  updateFlags(response: ExternalMove) {
-    const { actions, moveType, flags, color } = response;
-    const moves = actions.flatMap(({ move }) => move.from != move.to ? move : []);
-    this.switchTurn();
-    if (flags.includes(Flag.DOUBLE)) {
-      const { from, to } = moves[0];
-      const [r1, c] = SQUARE_TO_GRID_INDEX[from];
-      const r2 = SQUARE_TO_GRID_INDEX[to][0];
-      this.gameState.enPassantTargets.push(gridIndexToSquare([(r1 + r2) / 2, c]) as Square);
-    }
-    if (flags.includes(Flag.KING_MOVE)) {
-      this.gameState.hasCastlingRights[color] = { kingside: false, queenside: false };
-    }
-    const enemyColor = getEnemyColor(color);
-    if (flags.includes(Flag.KINGSIDE_ROOK_MOVE)) {
-      this.gameState.hasCastlingRights[color][CastleSide.KINGSIDE] = false;
-    } else if (flags.includes(Flag.QUEENSIDE_ROOK_MOVE)) {
-      this.gameState.hasCastlingRights[color][CastleSide.QUEENSIDE] = false;
-    }
-    if (flags.includes(Flag.KINGSIDE_ROOK_CAPTURED)) {
-      this.gameState.hasCastlingRights[enemyColor][CastleSide.KINGSIDE] = false;
-    }
-    if (flags.includes(Flag.QUEENSIDE_ROOK_CAPTURED)) {
-      this.gameState.hasCastlingRights[enemyColor][CastleSide.QUEENSIDE] = false;
-    }
-    if (flags.includes(Flag.PAWN_MOVE) || flags.includes(Flag.CAPTURE)) {
+  updateFlags(response: MoveResult) {
+    const { enPassantTarget, flags } = response;
+    if (flags[Flag.PAWN_MOVE] || flags[Flag.CAPTURE]) {
       this.gameState.halfMoves = 0;
     }
+    if (flags[Flag.DOUBLE] && enPassantTarget) {
+      this.gameState.enPassantTargets.push(enPassantTarget);
+    }
+
+    const { hasCastlingRights } = this.gameState;
+    hasCastlingRights[Color.BLACK][CastleSide.KINGSIDE] &&= !flags[Flag.DISABLE_BLACK_KINGSIDE_CASTLING];
+    hasCastlingRights[Color.BLACK][CastleSide.QUEENSIDE] &&= !flags[Flag.DISABLE_BLACK_QUEENSIDE_CASTLING];
+    hasCastlingRights[Color.WHITE][CastleSide.KINGSIDE] &&= !flags[Flag.DISABLE_WHITE_KINGSIDE_CASTLING];
+    hasCastlingRights[Color.WHITE][CastleSide.QUEENSIDE] &&= !flags[Flag.DISABLE_WHITE_QUEENSIDE_CASTLING];
+
   }
 
   // Handles pawn promotion

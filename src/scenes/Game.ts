@@ -1,9 +1,9 @@
 import { Scene } from "phaser";
 import { AtomicChessGUI } from "../atomic-chess/AtomicChessGUI";
 import { AtomicChessLogic } from "../atomic-chess/AtomicChessLogic";
-import { Square, INITIAL_GAMESTATE, PIECE_TO_COLOR, PromotablePiece, Move, MoveType, SQUARE_TO_GRID_INDEX, gridIndexToSquare } from "../atomic-chess/atomicChess";
+import { Square, INITIAL_GAMESTATE, PIECE_TO_COLOR, PromotablePiece, Move, MoveType } from "../atomic-chess/atomicChess";
 import { chessTileSize } from "../main";
-import { Flag, legalMovesFrom } from "../atomic-chess/atomicChess";
+import { Flag, getLegalMovesFrom } from "../atomic-chess/atomicChess";
 
 // Game scene class definition
 export class Game extends Scene {
@@ -11,10 +11,10 @@ export class Game extends Scene {
   chessGUI: AtomicChessGUI;
 
   selectedSquare: Square | null;
+  pointerSquare: Square | null;
+
   isGameOver: boolean;
   isPromoting: boolean;
-
-  pointerSquare: Square | null;
 
   constructor() {
     super('Game'); // Call to superclass constructor with scene key
@@ -47,11 +47,12 @@ export class Game extends Scene {
         });
       }
     });
+    this.chessGUI.indicateValidMoves({ captures: [], moves: [] });
 
     // Add pointer input to keep track of the square the pointer is currently hovering over
     this.input.on('pointermove', () => {
       const { x, y } = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
-      this.pointerSquare = worldXYToSquare(x, y, this.chessGUI.chessboardTilemapLayer);
+      this.pointerSquare = this.chessGUI.worldXYToSquare(x, y);
     });
 
     // Add pointer input to indicate the square the pointer is currently hovering over
@@ -90,7 +91,7 @@ export class Game extends Scene {
     this.chessGUI.update(response);
     const { flags } = response;
     console.table(response);
-    if (flags.includes(Flag.PROMOTION)) {
+    if (flags[Flag.PROMOTION]) {
       this.isPromoting = true;
       this.chessGUI.createPromotionMenu(activeColor, to, (piece: PromotablePiece) => {
         this.chessLogic.promote(to, piece);
@@ -108,16 +109,7 @@ export class Game extends Scene {
     const gameOverType = this.chessLogic.tryGameOver();
     if (!gameOverType) return;
     this.isGameOver = true;
-    const menu = this.chessGUI.gameOverMenus[gameOverType];
-    menu.setVisible(true)
-      .setAlpha(0);
-    this.tweens.add({
-      targets: menu,
-      duration: 1000,
-      delay: 1000,
-      alpha: 1,
-      ease: 'sine.in',
-    });
+    this.chessGUI.showGameOverMenu(gameOverType);
   }
 
   // Select a square
@@ -126,10 +118,10 @@ export class Game extends Scene {
     this.chessGUI.selectSquare(square);
 
     // Show circles and dots to indicate valid moves and captures
-    const validMoves = legalMovesFrom(this.chessLogic.gameState, square);
+    const validMoves = getLegalMovesFrom(this.chessLogic.gameState, square);
     this.chessGUI.indicateValidMoves({
-      captures: validMoves.filter(({moveType}) => moveType == MoveType.CAPTURE).map(({to}) => to),
-      moves: validMoves.filter(({moveType}) => moveType != MoveType.CAPTURE).map(({to}) => to),
+      captures: validMoves.filter(({ moveType }) => moveType == MoveType.CAPTURE).map(({ to }) => to),
+      moves: validMoves.filter(({ moveType }) => moveType != MoveType.CAPTURE).map(({ to }) => to),
     });
   }
 
@@ -138,18 +130,6 @@ export class Game extends Scene {
     this.selectedSquare = null;
     this.chessGUI.deselectSquare();
     this.chessGUI.highlightSquare(null);
-    this.chessGUI.indicateValidMoves({captures: [], moves: []});
+    this.chessGUI.indicateValidMoves({ captures: [], moves: [] });
   }
-}
-
-// Converts a square to the corresponding world position based on the given tilemap layer
-export function squareToWorldXY(square: Square, tilemapLayer: Phaser.Tilemaps.TilemapLayer): Phaser.Math.Vector2 {
-  const [r, c] = SQUARE_TO_GRID_INDEX[square];
-  return tilemapLayer.tileToWorldXY(c, 7 - r);
-}
-
-// Converts a world position based on the given tilemap layer to the corresponding square or null if there is no square at the given position
-export function worldXYToSquare(x: number, y: number, tilemapLayer: Phaser.Tilemaps.TilemapLayer): Square | null {
-  const { x: c, y: r } = tilemapLayer.worldToTileXY(x, y);
-  return gridIndexToSquare([7 - r, c]);
 }

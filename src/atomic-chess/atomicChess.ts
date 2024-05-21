@@ -1,16 +1,45 @@
-// Enumerate the possible colors of pieces
+// Chess validation system using a mix of the 0x88 representation and a dictionary mapping squares to pieces to represent a chessboard
+
+export const SQUARE_TO_X88: Record<Square, number> = {
+  a1: 0x00, b1: 0x01, c1: 0x02, d1: 0x03, e1: 0x04, f1: 0x05, g1: 0x06, h1: 0x07,
+  a2: 0x10, b2: 0x11, c2: 0x12, d2: 0x13, e2: 0x14, f2: 0x15, g2: 0x16, h2: 0x17,
+  a3: 0x20, b3: 0x21, c3: 0x22, d3: 0x23, e3: 0x24, f3: 0x25, g3: 0x26, h3: 0x27,
+  a4: 0x30, b4: 0x31, c4: 0x32, d4: 0x33, e4: 0x34, f4: 0x35, g4: 0x36, h4: 0x37,
+  a5: 0x40, b5: 0x41, c5: 0x42, d5: 0x43, e5: 0x44, f5: 0x45, g5: 0x46, h5: 0x47,
+  a8: 0x70, b8: 0x71, c8: 0x72, d8: 0x73, e8: 0x74, f8: 0x75, g8: 0x76, h8: 0x77,
+  a6: 0x50, b6: 0x51, c6: 0x52, d6: 0x53, e6: 0x54, f6: 0x55, g6: 0x56, h6: 0x57,
+  a7: 0x60, b7: 0x61, c7: 0x62, d7: 0x63, e7: 0x64, f7: 0x65, g7: 0x66, h7: 0x67,
+};
+
+export const X88_TO_SQUARE: Record<number, Square> = {
+  0x00: 'a1', 0x01: 'b1', 0x02: 'c1', 0x03: 'd1', 0x04: 'e1', 0x05: 'f1', 0x06: 'g1', 0x07: 'h1',
+  0x10: 'a2', 0x11: 'b2', 0x12: 'c2', 0x13: 'd2', 0x14: 'e2', 0x15: 'f2', 0x16: 'g2', 0x17: 'h2',
+  0x20: 'a3', 0x21: 'b3', 0x22: 'c3', 0x23: 'd3', 0x24: 'e3', 0x25: 'f3', 0x26: 'g3', 0x27: 'h3',
+  0x30: 'a4', 0x31: 'b4', 0x32: 'c4', 0x33: 'd4', 0x34: 'e4', 0x35: 'f4', 0x36: 'g4', 0x37: 'h4',
+  0x40: 'a5', 0x41: 'b5', 0x42: 'c5', 0x43: 'd5', 0x44: 'e5', 0x45: 'f5', 0x46: 'g5', 0x47: 'h5',
+  0x50: 'a6', 0x51: 'b6', 0x52: 'c6', 0x53: 'd6', 0x54: 'e6', 0x55: 'f6', 0x56: 'g6', 0x57: 'h6',
+  0x60: 'a7', 0x61: 'b7', 0x62: 'c7', 0x63: 'd7', 0x64: 'e7', 0x65: 'f7', 0x66: 'g7', 0x67: 'h7',
+  0x70: 'a8', 0x71: 'b8', 0x72: 'c8', 0x73: 'd8', 0x74: 'e8', 0x75: 'f8', 0x76: 'g8', 0x77: 'h8',
+};
+
+export function getRank(square: number): number {
+  return square >> 4;
+}
+
+export function getFile(square: number): number {
+  return square & 0xf;
+}
+
 export enum Color {
   WHITE = 'white',
   BLACK = 'black',
 }
 
-// Enumerate the possible types of castling
 export enum CastleSide {
   KINGSIDE = 'kingside',
   QUEENSIDE = 'queenside',
 }
 
-// Enumerate the possible types of moves
 export enum MoveType {
   CAPTURE = 'standard capture',
   EN_PASSANT = 'en passant',
@@ -19,7 +48,6 @@ export enum MoveType {
   STANDARD_MOVE = 'standard move',
 }
 
-// Enumerate the possible types of results when the game ends
 export enum GameOverType {
   WHITE_WIN = 'w',
   BLACK_WIN = 'b',
@@ -30,16 +58,14 @@ export enum GameOverType {
 export enum Flag {
   PROMOTION = 'promotion',
   DOUBLE = 'double',
-  KING_MOVE = 'king move',
-  KINGSIDE_ROOK_MOVE = 'kingside rook move',
-  QUEENSIDE_ROOK_MOVE = 'queenside rook move',
-  KINGSIDE_ROOK_CAPTURED = 'kingside rook captured',
-  QUEENSIDE_ROOK_CAPTURED = 'queenside rook captured',
   PAWN_MOVE = 'pawn move',
-  CAPTURE = 'capture'
+  CAPTURE = 'capture',
+  DISABLE_BLACK_QUEENSIDE_CASTLING = 'disable black queenside castling',
+  DISABLE_BLACK_KINGSIDE_CASTLING = 'disable black kingside castling',
+  DISABLE_WHITE_QUEENSIDE_CASTLING = 'disable white queenside castling',
+  DISABLE_WHITE_KINGSIDE_CASTLING = 'disable white kingside castling',
 }
 
-// Enumerate the possible types of chess pieces
 export enum PieceType {
   KING = 'K',
   QUEEN = 'Q',
@@ -49,24 +75,22 @@ export enum PieceType {
   PAWN = 'P'
 }
 
-// Define an interface for a move
 export interface Move {
   from: Square,
   to: Square,
 }
 
-export interface ExternalMove {
+export interface MoveResult {
   color: Color;
   from: Square;
   to: Square;
   piece: Piece;
-  flags: Flag[];
   result: Chessboard;
   moveType: MoveType;
-  actions: {
-    move: Move;
-    explode: boolean;
-  }[];
+  captures: Square[],
+  explode: boolean,
+  enPassantTarget?: Square,
+  flags: { [key in Flag]?: boolean },
 }
 
 // Define the structure for a castling move, including the movement of the king, rook, and squares between them.
@@ -74,12 +98,6 @@ export interface CastleMove {
   kingMove: Move; // Move of the king
   rookMove: Move; // Move of the rook
   between: Square[]; // Squares between the king and rook
-}
-
-// Define the structure of a move pattern
-export interface MovePattern {
-  steps: number,
-  patterns: SquareOffset[],
 }
 
 // Define the possible chess squares
@@ -92,17 +110,6 @@ export type Square =
   'a3' | 'b3' | 'c3' | 'd3' | 'e3' | 'f3' | 'g3' | 'h3' |
   'a2' | 'b2' | 'c2' | 'd2' | 'e2' | 'f2' | 'g2' | 'h2' |
   'a1' | 'b1' | 'c1' | 'd1' | 'e1' | 'f1' | 'g1' | 'h1';
-
-// Define the possible grid indices on a chessboard
-type Index = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
-export type SquareGridIndex = [Index, Index];
-
-// Define the possible grid offsets of each move on a chessboard
-type Offset = -7 | -6 | -5 | -4 | -3 | -2 | -1 | Index;
-export type SquareOffset = [Offset, Offset];
-
-// Define a position on a grid
-export type Pos = [number, number];
 
 // Define possible chess piece options when promoting pawns
 export type PromotablePiece = 'Q' | 'q' | 'B' | 'b' | 'N' | 'n' | 'R' | 'r';
@@ -160,58 +167,39 @@ export const PIECE_TO_TYPE: Record<Piece, PieceType> = {
   P: PieceType.PAWN
 };
 
-// Map chess squares to grid indices
-export const SQUARE_TO_GRID_INDEX: Record<Square, SquareGridIndex> = {
-  a8: [7, 0], b8: [7, 1], c8: [7, 2], d8: [7, 3], e8: [7, 4], f8: [7, 5], g8: [7, 6], h8: [7, 7],
-  a7: [6, 0], b7: [6, 1], c7: [6, 2], d7: [6, 3], e7: [6, 4], f7: [6, 5], g7: [6, 6], h7: [6, 7],
-  a6: [5, 0], b6: [5, 1], c6: [5, 2], d6: [5, 3], e6: [5, 4], f6: [5, 5], g6: [5, 6], h6: [5, 7],
-  a5: [4, 0], b5: [4, 1], c5: [4, 2], d5: [4, 3], e5: [4, 4], f5: [4, 5], g5: [4, 6], h5: [4, 7],
-  a4: [3, 0], b4: [3, 1], c4: [3, 2], d4: [3, 3], e4: [3, 4], f4: [3, 5], g4: [3, 6], h4: [3, 7],
-  a3: [2, 0], b3: [2, 1], c3: [2, 2], d3: [2, 3], e3: [2, 4], f3: [2, 5], g3: [2, 6], h3: [2, 7],
-  a2: [1, 0], b2: [1, 1], c2: [1, 2], d2: [1, 3], e2: [1, 4], f2: [1, 5], g2: [1, 6], h2: [1, 7],
-  a1: [0, 0], b1: [0, 1], c1: [0, 2], d1: [0, 3], e1: [0, 4], f1: [0, 5], g1: [0, 6], h1: [0, 7],
+export interface MovePattern {
+  steps: number,
+  dirs: number[],
+}
+
+const PIECE_MOVE_PATTERNS: Record<Piece, MovePattern> = {
+  k: { steps: 1, dirs: [-17, -16, -15, 1, 17, 16, 15, -1] },
+  q: { steps: 7, dirs: [-17, -16, -15, 1, 17, 16, 15, -1] },
+  b: { steps: 7, dirs: [-17, -15, 17, 15] },
+  n: { steps: 1, dirs: [-18, -33, -31, -14, 18, 33, 31, 14] },
+  r: { steps: 7, dirs: [-16, 1, 16, -1] },
+  p: { steps: 1, dirs: [-16] },
+  K: { steps: 1, dirs: [-17, -16, -15, 1, 17, 16, 15, -1] },
+  Q: { steps: 7, dirs: [-17, -16, -15, 1, 17, 16, 15, -1] },
+  B: { steps: 7, dirs: [-17, -15, 17, 15] },
+  N: { steps: 1, dirs: [-18, -33, -31, -14, 18, 33, 31, 14] },
+  R: { steps: 7, dirs: [-16, 1, 16, -1] },
+  P: { steps: 1, dirs: [16] },
 };
 
-// Define possible movement patterns
-export const MOVE_PATTERNS: Record<string, SquareOffset[]> = {
-  ALL: [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [-1, 1], [-1, -1], [1, -1]],
-  DIAGONAL: [[1, 1], [-1, 1], [-1, -1], [1, -1]],
-  HORIZONTAL: [[0, 1], [0, -1]],
-  L_SHAPE: [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]],
-  PLUS_SHAPE: [[0, 1], [0, -1], [1, 0], [-1, 0]],
-  VERTICAL: [[1, 0], [-1, 0]],
-};
-
-// Map pieces to their standard movement patterns
-export const PIECE_MOVE_PATTERNS: Record<Piece, MovePattern> = {
-  K: { steps: 1, patterns: MOVE_PATTERNS.ALL },
-  Q: { steps: 7, patterns: MOVE_PATTERNS.ALL },
-  B: { steps: 7, patterns: MOVE_PATTERNS.DIAGONAL },
-  N: { steps: 1, patterns: MOVE_PATTERNS.L_SHAPE },
-  R: { steps: 7, patterns: MOVE_PATTERNS.PLUS_SHAPE },
-  P: { steps: 1, patterns: [[1, 0]] },
-  k: { steps: 1, patterns: MOVE_PATTERNS.ALL },
-  q: { steps: 7, patterns: MOVE_PATTERNS.ALL },
-  b: { steps: 7, patterns: MOVE_PATTERNS.DIAGONAL },
-  n: { steps: 1, patterns: MOVE_PATTERNS.L_SHAPE },
-  r: { steps: 7, patterns: MOVE_PATTERNS.PLUS_SHAPE },
-  p: { steps: 1, patterns: [[-1, 0]] },
-};
-
-// Map pieces to their movement patterns when capturing pieces
-export const PIECE_CAPTURE_PATTERNS: Record<Piece, MovePattern> = {
-  K: { steps: 0, patterns: MOVE_PATTERNS.ALL },
-  Q: { steps: 7, patterns: MOVE_PATTERNS.ALL },
-  B: { steps: 7, patterns: MOVE_PATTERNS.DIAGONAL },
-  N: { steps: 1, patterns: MOVE_PATTERNS.L_SHAPE },
-  R: { steps: 7, patterns: MOVE_PATTERNS.PLUS_SHAPE },
-  P: { steps: 1, patterns: [[1, -1], [1, 1]] },
-  k: { steps: 0, patterns: MOVE_PATTERNS.ALL },
-  q: { steps: 7, patterns: MOVE_PATTERNS.ALL },
-  b: { steps: 7, patterns: MOVE_PATTERNS.DIAGONAL },
-  n: { steps: 1, patterns: MOVE_PATTERNS.L_SHAPE },
-  r: { steps: 7, patterns: MOVE_PATTERNS.PLUS_SHAPE },
-  p: { steps: 1, patterns: [[-1, -1], [-1, 1]] }
+const PIECE_CAPTURE_PATTERNS: Record<Piece, MovePattern> = {
+  k: { steps: 1, dirs: [-17, -16, -15, 1, 17, 16, 15, -1] },
+  q: { steps: 7, dirs: [-17, -16, -15, 1, 17, 16, 15, -1] },
+  b: { steps: 7, dirs: [-17, -15, 17, 15] },
+  n: { steps: 1, dirs: [-18, -33, -31, -14, 18, 33, 31, 14] },
+  r: { steps: 7, dirs: [-16, 1, 16, -1] },
+  p: { steps: 1, dirs: [-17, -15] },
+  K: { steps: 1, dirs: [-17, -16, -15, 1, 17, 16, 15, -1] },
+  Q: { steps: 7, dirs: [-17, -16, -15, 1, 17, 16, 15, -1] },
+  B: { steps: 7, dirs: [-17, -15, 17, 15] },
+  N: { steps: 1, dirs: [-18, -33, -31, -14, 18, 33, 31, 14] },
+  R: { steps: 7, dirs: [-16, 1, 16, -1] },
+  P: { steps: 1, dirs: [15, 17] },
 };
 
 // Map player colors to castles
@@ -230,7 +218,13 @@ export const CASTLE_MOVES: Record<Color, { kingside: CastleMove, queenside: Cast
 export const PROMOTION_SQUARES: Record<Color, Square[]> = {
   [Color.WHITE]: ['a8', 'b8', 'c8', 'd8', 'e8', 'f8', 'g8', 'h8'],
   [Color.BLACK]: ['a1', 'b1', 'c1', 'd1', 'e1', 'f1', 'g1', 'h1']
-}
+};
+
+// Map player colors to opposite player colors
+export const ENEMY_COLOR: Record<Color, Color> = {
+  [Color.WHITE]: Color.BLACK,
+  [Color.BLACK]: Color.WHITE
+};
 
 // Store double moves for pawns of each color
 export const PAWN_DOUBLE_MOVES: Record<Color, { [key: string]: { from: Square; between: Square; to: Square } }> = {
@@ -291,46 +285,27 @@ export const INITIAL_GAMESTATE: FEN = {
 };
 
 // Define array of all chessboard squares
-export const CHESSBOARD_SQUARES: Square[] = Object.keys(SQUARE_TO_GRID_INDEX) as Square[];
+export const CHESSBOARD_SQUARES: Square[] = Object.keys(SQUARE_TO_X88) as Square[];
 
-// Returns the opposite player color of the given color
-export function getEnemyColor(color: Color): Color {
-  return color == Color.WHITE ? Color.BLACK : Color.WHITE;
+export function moveSquare(square: Square, offset: number): Square | null {
+  return X88_TO_SQUARE[SQUARE_TO_X88[square] + offset] ?? null;
 }
 
-// Converts a grid index to the corresponding square or null if there is no square at the given index
-export function gridIndexToSquare(index: Pos): Square | null {
-  const [r, f] = index;
-  if (r < 0 || r > 7 || f < 0 || f > 7) return null;
-  return squareIndexToSquare(index as SquareGridIndex);
-}
-
-// Converts a square index to the corresponding square
-export function squareIndexToSquare([r, f]: SquareGridIndex): Square {
-  return 'abcdefgh'[f] + '12345678'[r] as Square;
-}
-
-// Moves a square by a given offset
-export function moveSquare(square: Square, [dr, dc]: SquareOffset, steps: number = 1): Square | null {
-  const [r, c] = SQUARE_TO_GRID_INDEX[square];
-  return gridIndexToSquare([r + steps * dr, c + steps * dc]);
-}
-
-const ADJ_SQUARES: SquareOffset[] = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]];
+const ADJ_SQUARES: number[] = [-17, -16, -15, 1, 17, 16, 15, -1];
 
 // Function to get all valid moves for the current game state
 export function hasLegalMoves(gameState: FEN): boolean {
-  return CHESSBOARD_SQUARES.some(from => legalMovesFrom(gameState, from).length);
+  return CHESSBOARD_SQUARES.some(from => getLegalMovesFrom(gameState, from).length > 0);
 }
 
 // Function to check if the current player is in checkmate
 export function isCheckmate(gameState: FEN, activeColor: Color): boolean {
-  return isAtomicCheck(gameState.board, activeColor) && !hasLegalMoves(gameState);
+  return isCheck(gameState.board, activeColor) && !hasLegalMoves(gameState);
 }
 
 // Function to check if the game is in stalemate
 export function isStalemate(gameState: FEN, activeColor: Color): boolean {
-  return !isAtomicCheck(gameState.board, activeColor) && !hasLegalMoves(gameState) && findKing(gameState.board, activeColor) != null;
+  return !isCheck(gameState.board, activeColor) && !hasLegalMoves(gameState) && findKing(gameState.board, activeColor) != null;
 }
 
 // Function to check if a pawn at a given square can be promoted
@@ -340,189 +315,140 @@ export function canPromotePawnAt(board: Chessboard, square: Square): boolean {
   return PROMOTION_SQUARES[PIECE_TO_COLOR[piece]].includes(square);
 }
 
-export function legalMovesFrom(gameState: FEN, from: Square): ExternalMove[] {
-  return movesFrom(gameState, from).filter(isLegalMove);
+export function getLegalMovesFrom(gameState: FEN, from: Square): MoveResult[] {
+  return getMovesFrom(gameState, from).filter(({ result, color }) => isLegalPosition(result, color));
 }
 
-function isLegalMove({ result, color }: ExternalMove): boolean {
-  return isLegalPosition(result, color);
-}
-
-function movesFrom(gameState: FEN, from: Square): ExternalMove[] {
+function getMovesFrom(gameState: FEN, from: Square): MoveResult[] {
   return [
-    ...castlesFrom(gameState, CastleSide.KINGSIDE, from),
-    ...castlesFrom(gameState, CastleSide.QUEENSIDE, from),
-    ...doubleMovesFrom(gameState, from),
-    ...enPassantsFrom(gameState, from),
-    ...capturesFrom(gameState, from),
-    ...standardMovesFrom(gameState, from),
+    ...getCastlesFrom(gameState, CastleSide.KINGSIDE, from),
+    ...getCastlesFrom(gameState, CastleSide.QUEENSIDE, from),
+    ...getDoubleMovesFrom(gameState, from),
+    ...getEnPassantsFrom(gameState, from),
+    ...getCapturesFrom(gameState, from),
+    ...getStandardMovesFrom(gameState, from),
   ];
 }
 
 // Function to get valid standard captures from a given square
-function capturesFrom(gameState: FEN, from: Square): ExternalMove[] {
+function getCapturesFrom(gameState: FEN, from: Square): MoveResult[] {
   const { board, activeColor } = gameState;
   const piece = board[from];
   if (!piece || PIECE_TO_COLOR[piece] != activeColor) return [];
-  const { patterns, steps } = PIECE_CAPTURE_PATTERNS[piece];
-  const enemyColor = getEnemyColor(activeColor);
-  return patterns.flatMap(offset => {
-    for (let i = 1; i <= steps; i++) {
-      const to = moveSquare(from, offset, i);
-      if (!to) return [];
-      const currPiece = board[to];
-      if (currPiece) return (PIECE_TO_COLOR[currPiece] == enemyColor) ? [to] : [];
-    }
-    return [];
-  })
+  const { dirs, steps } = PIECE_CAPTURE_PATTERNS[piece];
+  return dirs.flatMap(dir => getRayMove(board, from, dir, steps).last ?? [])
+    .filter(square => {
+      const pieceFound = board[square];
+      return pieceFound && PIECE_TO_COLOR[pieceFound] == ENEMY_COLOR[activeColor];
+    })
     .map(to => {
       const result = structuredClone(board);
-      const move = { from: from, to: to };
-      movePiece(result, move);
-      const explosions = getSurroundingExplosions(result, to);
-      explosions.forEach(square => explodeSquare(result, square));
-      explodeSquare(result, to);
-
-      const flags = [Flag.CAPTURE];
-      [to, ...explosions].forEach(square => {
-        if (board[square] == PieceType.ROOK) {
-          if (from == CASTLE_MOVES[activeColor][CastleSide.KINGSIDE].rookMove.from) {
-            flags.push(Flag.KINGSIDE_ROOK_CAPTURED);
-          } else if (from == CASTLE_MOVES[activeColor][CastleSide.QUEENSIDE].rookMove.from) {
-            flags.push(Flag.QUEENSIDE_ROOK_CAPTURED);
-          }
-        }
-      });
-
-
+      explodeSquare(result, from);
+      const captures = [to, ...getSurroundingExplosions(result, to)];
+      captures.forEach(square => explodeSquare(result, square));
       return ({
         from: from,
         to: to,
         piece: piece,
-        flags: flags,
+        flags: {
+          [Flag.CAPTURE]: true,
+          [Flag.DISABLE_BLACK_KINGSIDE_CASTLING]: captures.some(square => board[square] == 'r' && from == CASTLE_MOVES[Color.BLACK][CastleSide.KINGSIDE].rookMove.from),
+          [Flag.DISABLE_BLACK_QUEENSIDE_CASTLING]: captures.some(square => board[square] == 'r' && from == CASTLE_MOVES[Color.BLACK][CastleSide.QUEENSIDE].rookMove.from),
+          [Flag.DISABLE_WHITE_KINGSIDE_CASTLING]: captures.some(square => board[square] == 'R' && from == CASTLE_MOVES[Color.WHITE][CastleSide.KINGSIDE].rookMove.from),
+          [Flag.DISABLE_WHITE_QUEENSIDE_CASTLING]: captures.some(square => board[square] == 'R' && from == CASTLE_MOVES[Color.WHITE][CastleSide.QUEENSIDE].rookMove.from),
+        },
         color: activeColor,
         moveType: MoveType.CAPTURE,
+        captures: captures,
+        explode: true,
         result: result,
-        actions: [
-          { move: move, explode: true },
-          { move: { from: to, to: to }, explode: true },
-          ...explosions.map(square => ({ move: { from: square, to: square }, explode: true })),
-        ],
       });
     });
 }
 
 // Function to get valid standard moves from a given square
-function standardMovesFrom(gameState: FEN, from: Square): ExternalMove[] {
+function getStandardMovesFrom(gameState: FEN, from: Square): MoveResult[] {
   const { board, activeColor } = gameState;
   const piece = board[from];
   if (!piece || PIECE_TO_COLOR[piece] != activeColor) return [];
-  const { patterns, steps } = PIECE_MOVE_PATTERNS[piece];
-  return patterns.flatMap(offset => {
-    const between: Square[] = [];
-    for (let i = 1; i <= steps; i++) {
-      const to = moveSquare(from, offset, i);
-      if (!to || board[to]) return between;
-      between.push(to);
-    }
-    return between;
-  })
+  const { dirs, steps } = PIECE_MOVE_PATTERNS[piece];
+  return dirs.flatMap(dir => getRayMove(board, from, dir, steps).between)
     .map(to => {
       const result = structuredClone(board);
       movePiece(result, { from: from, to: to });
-      const flags = [];
-      if (piece == PieceType.PAWN) {
-        flags.push(Flag.PAWN_MOVE);
-      }
-      if (piece == PieceType.KING) {
-        flags.push(Flag.KING_MOVE);
-      }
-      if (piece == PieceType.ROOK) {
-        if (from == CASTLE_MOVES[activeColor][CastleSide.KINGSIDE].rookMove.from) {
-          flags.push(Flag.KINGSIDE_ROOK_MOVE);
-        } else if (from == CASTLE_MOVES[activeColor][CastleSide.QUEENSIDE].rookMove.from) {
-          flags.push(Flag.QUEENSIDE_ROOK_MOVE);
-        }
-      }
-      if (canPromotePawnAt(result, to)) {
-        flags.push(Flag.PROMOTION);
-      }
-
       return ({
         from: from,
         to: to,
         piece: piece,
-        flags: flags,
+        flags: {
+          [Flag.PAWN_MOVE]: piece == PieceType.PAWN,
+          [Flag.DISABLE_BLACK_KINGSIDE_CASTLING]: piece == 'k' || (piece == 'r' && from == CASTLE_MOVES[Color.BLACK][CastleSide.KINGSIDE].rookMove.from),
+          [Flag.DISABLE_BLACK_QUEENSIDE_CASTLING]: piece == 'k' || (piece == 'r' && from == CASTLE_MOVES[Color.BLACK][CastleSide.QUEENSIDE].rookMove.from),
+          [Flag.DISABLE_WHITE_KINGSIDE_CASTLING]: piece == 'K' || (piece == 'R' && from == CASTLE_MOVES[Color.WHITE][CastleSide.KINGSIDE].rookMove.from),
+          [Flag.DISABLE_WHITE_QUEENSIDE_CASTLING]: piece == 'K' || (piece == 'R' && from == CASTLE_MOVES[Color.WHITE][CastleSide.QUEENSIDE].rookMove.from),
+          [Flag.PROMOTION]: canPromotePawnAt(result, to),
+        },
         color: activeColor,
         moveType: MoveType.STANDARD_MOVE,
         result: result,
-        actions: [{ move: { from: from, to: to }, explode: false }],
+        explode: false,
+        captures: [],
       });
     });
 }
 
 // Function to get valid double moves from a given square
-function doubleMovesFrom({ board, activeColor }: FEN, from: Square): ExternalMove[] {
+function getDoubleMovesFrom({ board, activeColor }: FEN, from: Square): MoveResult[] {
   const piece = board[from];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.PAWN || PIECE_TO_COLOR[piece] != activeColor) return [];
   if (!(from in PAWN_DOUBLE_MOVES[activeColor])) return [];
   const { between, to } = PAWN_DOUBLE_MOVES[activeColor][from];
   if (board[between] || board[to]) return [];
-
   const result = structuredClone(board);
-  const move = { from: from, to: to };
-  movePiece(result, move);
+  movePiece(result, { from: from, to: to });
   return [{
     from: from,
     to: to,
     piece: piece,
-    flags: [Flag.DOUBLE],
+    flags: { [Flag.DOUBLE]: true },
     color: activeColor,
     moveType: MoveType.STANDARD_MOVE,
     result: result,
-    actions: [{ move: move, explode: false }],
+    explode: false,
+    captures: [],
+    enPassantTarget: between,
   }];
 }
 
 // Function to get valid en passant moves from a given square
-function enPassantsFrom({ board, activeColor, enPassantTargets }: FEN, from: Square): ExternalMove[] {
+function getEnPassantsFrom({ board, activeColor, enPassantTargets }: FEN, from: Square): MoveResult[] {
   const piece = board[from];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.PAWN || PIECE_TO_COLOR[piece] != activeColor) return [];
-
-  return PIECE_CAPTURE_PATTERNS[piece].patterns.flatMap(offset => moveSquare(from, offset) ?? [])
+  return PIECE_CAPTURE_PATTERNS[piece].dirs.flatMap(offset => moveSquare(from, offset) ?? [])
     .filter(to => enPassantTargets.includes(to))
     .map(to => {
-      const move = { from: from, to: to };
       const result = structuredClone(board);
-      const r1 = SQUARE_TO_GRID_INDEX[from][0];
-      const c2 = SQUARE_TO_GRID_INDEX[to][1];
-      const target = squareIndexToSquare([r1, c2]);
-      movePiece(result, move);
-      explodeSquare(result, target);
-      const explosions = getSurroundingExplosions(result, to);
-      explosions.forEach(square => explodeSquare(result, square));
-      explodeSquare(result, to);
-
+      const target = moveSquare(to, -PIECE_MOVE_PATTERNS[piece].dirs[0]) as Square;
+      explodeSquare(result, from);
+      const captures = [target, ...getSurroundingExplosions(result, to)];
+      captures.forEach(square => explodeSquare(result, square));
       return ({
         from: from,
         to: to,
         piece: piece,
-        flags: [Flag.CAPTURE],
+        flags: { [Flag.CAPTURE]: true },
         color: activeColor,
         moveType: MoveType.EN_PASSANT,
         result: result,
-        actions: [
-          { move: move, explode: true },
-          { move: { from: target, to: target }, explode: true },
-          ...explosions.map(square => ({ move: { from: square, to: square }, explode: true })),
-        ],
+        captures: captures,
+        explode: true,
       });
     });
 }
 
-function castlesFrom(gameState: FEN, castleSide: CastleSide, from: Square): ExternalMove[] {
+function getCastlesFrom(gameState: FEN, castleSide: CastleSide, from: Square): MoveResult[] {
   const { board, activeColor, hasCastlingRights } = gameState;
-  if (!hasCastlingRights[activeColor][castleSide] || isAtomicCheck(board, activeColor)) return [];
+  if (!hasCastlingRights[activeColor][castleSide] || isCheck(board, activeColor)) return [];
   const { kingMove, between, rookMove } = CASTLE_MOVES[activeColor][castleSide];
   if (from != kingMove.from) return [];
   const king = board[kingMove.from];
@@ -530,23 +456,24 @@ function castlesFrom(gameState: FEN, castleSide: CastleSide, from: Square): Exte
   if (!king || PIECE_TO_TYPE[king] != PieceType.KING || PIECE_TO_COLOR[king] != activeColor) return [];
   if (!rook || PIECE_TO_TYPE[rook] != PieceType.ROOK || PIECE_TO_COLOR[rook] != activeColor) return [];
   if (between.some(square => board[square])) return [];
-
   const result = structuredClone(board);
   movePiece(result, { from: kingMove.from, to: kingMove.to });
   movePiece(result, { from: rookMove.from, to: rookMove.to });
-
   return [{
     from: from,
     to: kingMove.to,
     piece: king,
-    flags: [Flag.KING_MOVE, castleSide == CastleSide.KINGSIDE ? Flag.KINGSIDE_ROOK_MOVE : Flag.QUEENSIDE_ROOK_MOVE],
+    flags: {
+      [Flag.DISABLE_BLACK_KINGSIDE_CASTLING]: castleSide == CastleSide.KINGSIDE && activeColor == Color.BLACK,
+      [Flag.DISABLE_BLACK_QUEENSIDE_CASTLING]: castleSide == CastleSide.QUEENSIDE && activeColor == Color.BLACK,
+      [Flag.DISABLE_WHITE_KINGSIDE_CASTLING]: castleSide == CastleSide.KINGSIDE && activeColor == Color.WHITE,
+      [Flag.DISABLE_WHITE_QUEENSIDE_CASTLING]: castleSide == CastleSide.QUEENSIDE && activeColor == Color.WHITE,
+    },
     color: activeColor,
     moveType: castleSide == CastleSide.KINGSIDE ? MoveType.KINGSIDE_CASTLE : MoveType.QUEENSIDE_CASTLE,
     result: result,
-    actions: [
-      { move: kingMove, explode: false },
-      { move: rookMove, explode: false },
-    ],
+    captures: [],
+    explode: false,
   }];
 }
 
@@ -571,7 +498,7 @@ function getSurroundingExplosions(board: Chessboard, square: Square): Square[] {
 }
 
 // Finds a specific piece on the board
-export function findPiece(board: Chessboard, piece: Piece): Square | null {
+function findPiece(board: Chessboard, piece: Piece): Square | null {
   return CHESSBOARD_SQUARES.find(key => board[key] == piece) ?? null;
 }
 
@@ -581,37 +508,40 @@ export function findKing(board: Chessboard, activeColor: Color): Square | null {
 }
 
 // Checks if two squares are adjacent to each other
-export function isAdjacent(square1: Square, square2: Square) {
-  const [r1, c1] = SQUARE_TO_GRID_INDEX[square1];
-  const [r2, c2] = SQUARE_TO_GRID_INDEX[square2];
-  return Math.abs(r1 - r2) <= 1 && Math.abs(c1 - c2) <= 1;
+function isAdjacent(square1: Square, square2: Square) {
+  return ADJ_SQUARES.includes(SQUARE_TO_X88[square1] - SQUARE_TO_X88[square2]);
 }
 
 // Checks if the specified player is in atomic check
-export function isAtomicCheck(board: Chessboard, activeColor: Color): boolean {
-  const enemyColor = getEnemyColor(activeColor);
+function isCheck(board: Chessboard, activeColor: Color): boolean {
+  const enemyColor = ENEMY_COLOR[activeColor];
   const kingPos = findKing(board, activeColor);
   const enemyKingPos = findKing(board, enemyColor);
-  if (!kingPos || !enemyKingPos) return false;
-  if (isAdjacent(kingPos, enemyKingPos)) return false;
-  for (let [piece, color] of Object.entries(PIECE_TO_COLOR) as [Piece, Color][]) {
-    if (activeColor == color) continue;
-    const { patterns: pattern, steps } = PIECE_CAPTURE_PATTERNS[piece];
-    for (let offset of pattern) {
-      for (let i = 1; i <= steps; i++) {
-        const square = moveSquare(kingPos, offset, -i);
-        if (!square) break;
-        const piece2 = board[square];
-        if (!piece2) continue;
-        if (PIECE_TO_COLOR[piece2] != enemyColor || PIECE_TO_TYPE[piece2] != PIECE_TO_TYPE[piece]) break;
-        return true;
-      }
-    }
-  }
-  return false;
+  if (!kingPos || !enemyKingPos || isAdjacent(kingPos, enemyKingPos)) return false;
+
+  const enemyPieceTypes = (Object.keys(PIECE_TO_COLOR) as Piece[]).filter(piece => PIECE_TO_COLOR[piece] == enemyColor);
+  return enemyPieceTypes.some(piece => {
+    const { dirs, steps } = PIECE_CAPTURE_PATTERNS[piece];
+    return dirs.some(dir => {
+      const square = getRayMove(board, kingPos, -dir, steps).last;
+      return square && board[square] == piece;
+    })
+  });
 }
 
 // Checks if the atomic chess position causes the specified player to lose
-export function isLegalPosition(board: Chessboard, activeColor: Color): boolean {
-  return findKing(board, activeColor) != null && !isAtomicCheck(board, activeColor);
+function isLegalPosition(board: Chessboard, activeColor: Color): boolean {
+  return findKing(board, activeColor) != null && !isCheck(board, activeColor);
+}
+
+// last returns null if the last square is off the board, otherwise it returns the square of the last piece it encountered
+function getRayMove(board: Chessboard, from: Square, dir: number, steps: number): { between: Square[], last: Square | null } {
+  const between: Square[] = [];
+  for (let i = 1; i <= steps; i++) {
+    const square = moveSquare(from, i * dir);
+    if (!square) break;
+    if (board[square]) return { between: between, last: square };
+    between.push(square);
+  }
+  return { between: between, last: null };
 }
