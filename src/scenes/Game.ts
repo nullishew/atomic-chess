@@ -1,13 +1,11 @@
 import { Scene } from "phaser";
 import { AtomicChessGUI } from "../atomic-chess/AtomicChessGUI";
-import { AtomicChessLogic } from "../atomic-chess/AtomicChessLogic";
-import { Square, INITIAL_GAMESTATE, PIECE_TO_COLOR, PromotablePiece, Move, MoveType } from "../atomic-chess/atomicChess";
+import { AtomicChess, Square, INITIAL_GAMESTATE, X88, PIECE_TO_COLOR, Flag, PromotablePiece, MoveType } from "../atomic-chess/AtomicChess";
 import { chessTileSize } from "../main";
-import { Flag, getLegalMovesFrom } from "../atomic-chess/atomicChess";
 
 // Game scene class definition
 export class Game extends Scene {
-  chessLogic: AtomicChessLogic;
+  chessLogic: AtomicChess;
   chessGUI: AtomicChessGUI;
 
   selectedSquare: Square | null;
@@ -32,7 +30,7 @@ export class Game extends Scene {
     this.isPromoting = false;
 
     // Initialize atomic chess game
-    this.chessLogic = new AtomicChessLogic(structuredClone(INITIAL_GAMESTATE));
+    this.chessLogic = new AtomicChess(structuredClone(INITIAL_GAMESTATE));
 
     // Initialize atomic chess gui
     this.chessGUI = new AtomicChessGUI({
@@ -69,8 +67,8 @@ export class Game extends Scene {
         this.deselectSquare();
         return;
       }
-      const { activeColor, board } = this.chessLogic.gameState;
-      const piece = board[pointerSquare];
+      const { activeColor, board } = this.chessLogic;
+      const piece = board[X88[pointerSquare]];
       if (piece && PIECE_TO_COLOR[piece] == activeColor) {
         this.selectSquare(pointerSquare);
         return;
@@ -80,18 +78,21 @@ export class Game extends Scene {
       this.deselectSquare();
       this.tryMove({ from: square, to: pointerSquare });
     });
+
+    const space = this?.input?.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    space?.on('down', () => console.log(this.chessLogic.getFEN()));
   }
 
   // Attempt to make a move
-  tryMove(move: Move) {
+  tryMove(move: { from: Square, to: Square }) {
     const { to } = move;
-    const { activeColor } = this.chessLogic.gameState;
+    const { activeColor } = this.chessLogic;
     const response = this.chessLogic.tryMove(move);
     if (!response) return;
     this.chessGUI.update(response);
     const { flags } = response;
     console.table(response);
-    if (flags[Flag.PROMOTION]) {
+    if (flags?.[Flag.PROMOTION]) {
       this.isPromoting = true;
       this.chessGUI.createPromotionMenu(activeColor, to, (piece: PromotablePiece) => {
         this.chessLogic.promote(to, piece);
@@ -118,10 +119,11 @@ export class Game extends Scene {
     this.chessGUI.selectSquare(square);
 
     // Show circles and dots to indicate valid moves and captures
-    const validMoves = getLegalMovesFrom(this.chessLogic.gameState, square);
+    const validMoves = this.chessLogic.getLegalMovesFrom(square);
+    console.log(validMoves);
     this.chessGUI.indicateValidMoves({
-      captures: validMoves.filter(({ moveType }) => moveType == MoveType.CAPTURE).map(({ to }) => to),
-      moves: validMoves.filter(({ moveType }) => moveType != MoveType.CAPTURE).map(({ to }) => to),
+      captures: validMoves.filter(({ type: moveType }) => moveType == MoveType.CAPTURE).map(({ to }) => to),
+      moves: validMoves.filter(({ type: moveType }) => moveType != MoveType.CAPTURE).map(({ to }) => to),
     });
   }
 

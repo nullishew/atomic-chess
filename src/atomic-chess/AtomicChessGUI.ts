@@ -1,19 +1,19 @@
 import { Scene, Tilemaps, GameObjects, Sound } from "phaser";
-import { Square, CHESSBOARD_SQUARES, Piece, Chessboard, INITIAL_CHESSBOARD_POSITION, PromotablePiece, Color, GameOverType, PROMOTABLE_PIECES, MoveType, CASTLE_MOVES, CastleSide, getFile, getRank, X88_TO_SQUARE, SQUARE_TO_X88 } from "./atomicChess";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { ChessPiece } from "./ChessPieceSprite";
-import { MoveResult } from "./atomicChess";
+import { Color, GameOverType, X88Chessboard, X88_TO_SQUARE, Piece, Square, INITIAL_X88CHESSBOARD_POSITION, PromotablePiece, PROMOTABLE_PIECES, MoveResult, MoveType, CASTLE_MOVES, X88, getFile, getRank } from "./AtomicChess";
+
 
 // Define a class to manage the graphical user interface of an atomic chess game
 export class AtomicChessGUI {
   scene: Scene; // Scene the gui is part of
 
-  chessboardTilemap: Tilemaps.Tilemap; // Tilemap to create tilemap layers
-  chessboardTilemapLayer: Tilemaps.TilemapLayer; // Tilemap layer to display chessboard squares and map squares to world positions
-  moveIndicatorTilemapLayer: Tilemaps.TilemapLayer;
-  captureIndicatorTilemapLayer: Tilemaps.TilemapLayer;
+  chessboard: Tilemaps.Tilemap; // Tilemap to create tilemap layers
+  chessboardTileLayer: Tilemaps.TilemapLayer; // Tilemap layer to display chessboard squares and map squares to world positions
+  moveIndicatorLayer: Tilemaps.TilemapLayer;
+  captureIndicatorLayer: Tilemaps.TilemapLayer;
 
-  sprites: Record<Square, ChessPiece | null>; // Map squares to corresponding chess piece sprites
+  chessPieces: (ChessPiece | null)[]; // Map squares to corresponding chess piece sprites
 
   pointerTileOutline: GameObjects.Rectangle; // Graphics objects to indicate the tile currently hovered over by the pointer
   selectedTileOutline: GameObjects.Rectangle; // Graphics objects to indicate the selected tile
@@ -26,9 +26,8 @@ export class AtomicChessGUI {
   promotionMenus: Record<Color, GameObjects.Container>;
   gameOverMenus: Record<GameOverType, GameObjects.Container>;
 
-
   addTileOutline() {
-    const tileSize = this.chessboardTilemap.tileHeight;
+    const tileSize = this.chessboard.tileHeight;
     return this.scene.add.rectangle(0, 0, tileSize, tileSize).setStrokeStyle(tileSize * .125, 0xffffff, 1)
       .setOrigin(0)
       .setVisible(false);
@@ -60,33 +59,23 @@ export class AtomicChessGUI {
   }
 
   addChessboardOutline(lineWidth: number, glowStrength: number, glowDistance: number) {
-    const { width, height } = this.chessboardTilemapLayer;
+    const { width, height } = this.chessboardTileLayer;
     const outline = this.scene.add.rectangle(0, 0, width + lineWidth, height + lineWidth, 0x252525);
     outline.postFX.addGlow(0xffffff, glowStrength, 0, false, 1, glowDistance);
     return outline;
   }
 
   // Function to create sprites for all chess pieces based on the specified board
-  addChessPieces(board: Chessboard) {
+  addChessPieces(board: X88Chessboard) {
     const container = this.scene.add.container();
-    const sprites: Record<Square, ChessPiece | null> = {} as Record<Square, ChessPiece | null>;
-    for (const square of CHESSBOARD_SQUARES) {
-      const piece = board[square];
-      if (!piece) {
-        sprites[square] = null;
-        continue;
-      }
-      const sprite = this.addChessPiece(piece, square);
-      sprites[square] = sprite;
+    const sprites = board.map((piece, index) => {
+      if (!piece) return null;
+      const { x, y } = this.x88ToWorldXY(index);
+      const sprite = this.scene.add.existing(new ChessPiece(this.scene, PIECE_TO_TEXTURE_FRAME[piece], x, y));
       container.add(sprite);
-    }
+      return sprite;
+    });
     return { container: container, sprites: sprites };
-  }
-
-  // Function to create a sprite for a chess piece
-  addChessPiece(piece: Piece, square: Square) {
-    const { x, y } = this.squareToWorldXY(square);
-    return this.scene.add.existing(new ChessPiece(this.scene, PIECE_TO_TEXTURE_FRAME[piece], x, y));
   }
 
   constructor({ scene, tileSize, pieceMoveTime, gameOverMenuCallback: gameOverCallback }: { scene: Scene; tileSize: number; pieceMoveTime: number; gameOverMenuCallback: () => any; }) {
@@ -99,17 +88,17 @@ export class AtomicChessGUI {
 
     // Add chessboard
     ({
-      map: this.chessboardTilemap,
-      chessTileLayer: this.chessboardTilemapLayer,
-      captureIndicatorLayer: this.captureIndicatorTilemapLayer,
-      moveIndicatorLayer: this.moveIndicatorTilemapLayer
+      map: this.chessboard,
+      chessTileLayer: this.chessboardTileLayer,
+      captureIndicatorLayer: this.captureIndicatorLayer,
+      moveIndicatorLayer: this.moveIndicatorLayer
     } = this.addChessboard(tileSize));
 
     const outline = this.addChessboardOutline(tileSize * .25, .125 * tileSize, .375 * tileSize);
 
     // Add chess pieces
     let chessPieceContainer;
-    ({ sprites: this.sprites, container: chessPieceContainer } = this.addChessPieces(INITIAL_CHESSBOARD_POSITION));
+    ({ sprites: this.chessPieces, container: chessPieceContainer } = this.addChessPieces(INITIAL_X88CHESSBOARD_POSITION));
 
     // Add tile indicators (mouse hover, selected)
     this.pointerTileOutline = this.addTileOutline();
@@ -139,12 +128,12 @@ export class AtomicChessGUI {
     // Define render order
     const gameLayer = scene.add.layer([
       outline,
-      this.chessboardTilemapLayer,
+      this.chessboardTileLayer,
       chessPieceContainer,
       this.pointerTileOutline,
       this.selectedTileOutline,
-      this.moveIndicatorTilemapLayer,
-      this.captureIndicatorTilemapLayer,
+      this.moveIndicatorLayer,
+      this.captureIndicatorLayer,
       this.explosionParticles
     ]);
 
@@ -163,7 +152,7 @@ export class AtomicChessGUI {
   createPromotionMenu(color: Color, square: Square, callback: (piece: PromotablePiece) => any): GameObjects.Container {
     const scene = this.scene;
     const { x, y } = this.squareToWorldXY(square);
-    const tileSize = this.chessboardTilemap.tileHeight;
+    const tileSize = this.chessboard.tileHeight;
     const container = scene.add.container(x, y);
     const buttonData = PROMOTABLE_PIECES[color].map((piece, i) => ({
       piece: piece,
@@ -233,26 +222,30 @@ export class AtomicChessGUI {
     this.selectedTileOutline.visible = false;
   }
 
-  indicateValidMoves({ captures, moves }: { captures: Square[]; moves: Square[]; }) {
-    [this.captureIndicatorTilemapLayer, this.moveIndicatorTilemapLayer].flatMap(layer => layer.getTilesWithin(0, 0, 8, 8))
+  indicateValidMoves({ captures, moves }: { captures: number[]; moves: number[]; }) {
+    [this.captureIndicatorLayer, this.moveIndicatorLayer].flatMap(layer => layer.getTilesWithin(0, 0, 8, 8))
       .forEach(tile => tile?.setVisible(false));
-    captures.map(square => this.squareToTileXY(square))
-      .forEach(({ x, y }) => this.captureIndicatorTilemapLayer.getTileAt(x, y)?.setVisible(true));
-    moves.map(square => this.squareToTileXY(square))
-      .forEach(({ x, y }) => this.moveIndicatorTilemapLayer.getTileAt(x, y)?.setVisible(true));
+    for (const square of captures) {
+      const { x, y } = this.x88ToTileXY(square);
+      this.captureIndicatorLayer.getTileAt(x, y)?.setVisible(true);
+    }
+    for (const square of moves) {
+      const { x, y } = this.x88ToTileXY(square);
+      this.moveIndicatorLayer.getTileAt(x, y)?.setVisible(true)
+    }
   }
 
-  movePiece(from: Square, to: Square) {
-    const { x, y } = this.squareToWorldXY(to);
-    this.sprites[from]?.move(x, y, this.pieceMoveTime);
-    this.sprites[to] = this.sprites[from];
-    this.sprites[from] = null;
+  movePiece(from: number, to: number) {
+    const { x, y } = this.x88ToWorldXY(to);
+    this.chessPieces[from]?.move(x, y, this.pieceMoveTime);
+    this.chessPieces[to] = this.chessPieces[from];
+    this.chessPieces[from] = null;
   }
 
-  explodePiece(square: Square) {
-    const sprite = this.sprites[square];
+  explodePiece(square: number) {
+    const sprite = this.chessPieces[square];
     if (!sprite) return;
-    this.sprites[square] = null;
+    this.chessPieces[square] = null;
     this.scene.time.addEvent({
       delay: this.pieceMoveTime,
       callback: () => {
@@ -266,10 +259,10 @@ export class AtomicChessGUI {
   }
 
   // Method to update GUI based on game actions
-  update({ color, moveType, captures, explode, from, to }: MoveResult) {
-    captures.forEach(this.explodePiece.bind(this));
+  update({ color, type: moveType, captures, explode, from, to }: MoveResult) {
+    captures?.forEach(this.explodePiece.bind(this));
     if (moveType == MoveType.KINGSIDE_CASTLE || moveType == MoveType.QUEENSIDE_CASTLE) {
-      const { kingMove, rookMove } = CASTLE_MOVES[color][moveType == MoveType.KINGSIDE_CASTLE ? CastleSide.KINGSIDE : CastleSide.QUEENSIDE];
+      const { kingMove, rookMove } = CASTLE_MOVES[color][moveType];
       this.movePiece(kingMove.from, kingMove.to);
       this.movePiece(rookMove.from, rookMove.to);
     } else {
@@ -291,26 +284,47 @@ export class AtomicChessGUI {
   }
 
   promoteSprite(square: Square, piece: PromotablePiece) {
-    this.sprites[square]?.promote(piece);
+    this.chessPieces[X88[square]]?.promote(piece);
   }
 
+
+
+
+  // spaghetti units
   squareToTileXY(square: Square): Phaser.Types.Math.Vector2Like {
-    const index = SQUARE_TO_X88[square];
-    return { x: getFile(index), y: 7 - getRank(index) };
+    return this.x88ToTileXY(X88[square]);
   }
 
   tileXYToSquare(x: number, y: number): Square | null {
-    return X88_TO_SQUARE[16 * (7 - y) + x] ?? null;
+    return X88_TO_SQUARE[this.tileXYToX88(x, y)] ?? null;
+  }
+
+  tileXYToX88(x: number, y: number): number {
+    return 16 * (7 - y) + x;
+  }
+
+  x88ToTileXY(square: number): Phaser.Types.Math.Vector2Like {
+    return { x: getFile(square), y: 7 - getRank(square) };
+  }
+
+  x88ToWorldXY(square: number): Phaser.Types.Math.Vector2Like {
+    const { x, y } = this.x88ToTileXY(square);
+    return this.chessboardTileLayer.tileToWorldXY(x, y);
   }
 
   squareToWorldXY(square: Square): Phaser.Math.Vector2 {
     const { x, y } = this.squareToTileXY(square);
-    return this.chessboardTilemapLayer.tileToWorldXY(x, y);
+    return this.chessboardTileLayer.tileToWorldXY(x, y);
   }
 
   worldXYToSquare(x: number, y: number): Square | null {
-    const { x: tileX, y: tileY } = this.chessboardTilemapLayer.worldToTileXY(x, y);
+    const { x: tileX, y: tileY } = this.chessboardTileLayer.worldToTileXY(x, y);
     return this.tileXYToSquare(tileX, tileY);
+  }
+
+  worldXYToIndex(x: number, y: number): number {
+    const { x: f, y: r } = this.chessboardTileLayer.worldToTileXY(x, y);
+    return 16 * (7 - r) + f;
   }
 
 }

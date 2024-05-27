@@ -1,6 +1,6 @@
 import { GameObjects, Scene } from "phaser";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
-import { PromotablePiece } from "./atomicChess";
+import { PromotablePiece } from "./AtomicChess";
 
 // Class to represent a sprite to render chess pieces
 export class ChessPiece extends GameObjects.Sprite {
@@ -9,26 +9,18 @@ export class ChessPiece extends GameObjects.Sprite {
     this.setOrigin(0);
   }
 
-  // Moves a chess piece and explodes it if specified
+  // Animates chess piece movement over the specified duration
   move(x: number, y: number, duration: number) {
-    // Create a tween to animate the piece movement
-    const tween = this.scene.tweens.add({
-      targets: this,
-      x: x,
-      y: y,
-      ease: 'quad.in',
-      duration: duration,
-    });
-
-    // When the tween completes, set the position of the piece
+    const tween = this.scene.tweens.add({ targets: this, x, y, ease: 'quad.in', duration });
     tween.on('complete', () => this.setPosition(x, y));
   }
 
+  // Animates chess piece explosion (excluding particle effects, camera effects, sounds, etc.)
   explode() {
     this.destroy();
   }
 
-  // Update the image of a chess piece that gets promoted
+  // Update the image of a promoting chess piece
   promote(piece: PromotablePiece) {
     this.setFrame(PIECE_TO_TEXTURE_FRAME[piece]);
   }
