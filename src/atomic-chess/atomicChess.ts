@@ -1,42 +1,40 @@
-// Chess validator taking advantage of parts of the 0x88 chessboard representation
-
-export const X88: Record<Square, number> = {
-  a1: 0x00, b1: 0x01, c1: 0x02, d1: 0x03, e1: 0x04, f1: 0x05, g1: 0x06, h1: 0x07,
-  a2: 0x10, b2: 0x11, c2: 0x12, d2: 0x13, e2: 0x14, f2: 0x15, g2: 0x16, h2: 0x17,
-  a3: 0x20, b3: 0x21, c3: 0x22, d3: 0x23, e3: 0x24, f3: 0x25, g3: 0x26, h3: 0x27,
-  a4: 0x30, b4: 0x31, c4: 0x32, d4: 0x33, e4: 0x34, f4: 0x35, g4: 0x36, h4: 0x37,
-  a5: 0x40, b5: 0x41, c5: 0x42, d5: 0x43, e5: 0x44, f5: 0x45, g5: 0x46, h5: 0x47,
-  a6: 0x50, b6: 0x51, c6: 0x52, d6: 0x53, e6: 0x54, f6: 0x55, g6: 0x56, h6: 0x57,
-  a7: 0x60, b7: 0x61, c7: 0x62, d7: 0x63, e7: 0x64, f7: 0x65, g7: 0x66, h7: 0x67,
-  a8: 0x70, b8: 0x71, c8: 0x72, d8: 0x73, e8: 0x74, f8: 0x75, g8: 0x76, h8: 0x77,
-};
-
-export const X88_TO_SQUARE: Record<number, Square> = {
-  0x00: 'a1', 0x01: 'b1', 0x02: 'c1', 0x03: 'd1', 0x04: 'e1', 0x05: 'f1', 0x06: 'g1', 0x07: 'h1',
-  0x10: 'a2', 0x11: 'b2', 0x12: 'c2', 0x13: 'd2', 0x14: 'e2', 0x15: 'f2', 0x16: 'g2', 0x17: 'h2',
-  0x20: 'a3', 0x21: 'b3', 0x22: 'c3', 0x23: 'd3', 0x24: 'e3', 0x25: 'f3', 0x26: 'g3', 0x27: 'h3',
-  0x30: 'a4', 0x31: 'b4', 0x32: 'c4', 0x33: 'd4', 0x34: 'e4', 0x35: 'f4', 0x36: 'g4', 0x37: 'h4',
-  0x40: 'a5', 0x41: 'b5', 0x42: 'c5', 0x43: 'd5', 0x44: 'e5', 0x45: 'f5', 0x46: 'g5', 0x47: 'h5',
-  0x50: 'a6', 0x51: 'b6', 0x52: 'c6', 0x53: 'd6', 0x54: 'e6', 0x55: 'f6', 0x56: 'g6', 0x57: 'h6',
-  0x60: 'a7', 0x61: 'b7', 0x62: 'c7', 0x63: 'd7', 0x64: 'e7', 0x65: 'f7', 0x66: 'g7', 0x67: 'h7',
-  0x70: 'a8', 0x71: 'b8', 0x72: 'c8', 0x73: 'd8', 0x74: 'e8', 0x75: 'f8', 0x76: 'g8', 0x77: 'h8',
-};
-
-export function getRank(square: number): number {
-  return square >> 4;
-}
-
-export function getFile(square: number): number {
-  return square & 0xf;
-}
-
+// Define the player and chess piece colors
 export enum Color {
   WHITE = 'white',
   BLACK = 'black',
 }
 
-export type CastleType = MoveType.KINGSIDE_CASTLE | MoveType.QUEENSIDE_CASTLE;
+// Define the possible piece types
+export enum PieceType {
+  KING = 'K',
+  QUEEN = 'Q',
+  BISHOP = 'B',
+  KNIGHT = 'N',
+  ROOK = 'R',
+  PAWN = 'P',
+}
 
+// Define possible flags that could be raised in a chess game that would require the game state to be updated
+export enum Flag {
+  PROMOTION = 'promotion', // When a pawn reaches the other side of the board, it can be promoted to a queen, knight, bishop, or rook
+  DOUBLE = 'double', // When pawns move two squares on the first move, they become en passant targets
+  PAWN_MOVE = 'pawn move', // Moving a pawn resets the halfmove clock
+  CAPTURE = 'capture', // Capturing a piece resets the halfmove clock
+  DISABLE_BLACK_QUEENSIDE_CASTLING = 'disable black queenside castling', // When the A8 black rook is captured or moves, black can no longer castle queenside
+  DISABLE_BLACK_KINGSIDE_CASTLING = 'disable black kingside castling', // When the H8 black rook is captured or moves, black can no longer castle kingside
+  DISABLE_WHITE_QUEENSIDE_CASTLING = 'disable white queenside castling', // When the A1 white rook is captured or moves, white can no longer castle queenside
+  DISABLE_WHITE_KINGSIDE_CASTLING = 'disable white kingside castling', // When the H8 white rook is captured or moves, white can no longer castle kingside
+}
+
+// Define possible ways to end the game
+export enum GameOverType {
+  WHITE_WIN = 'w',
+  BLACK_WIN = 'b',
+  DRAW = 'd',
+  STALEMATE = 's',
+}
+
+// Define possible chess moves
 export enum MoveType {
   CAPTURE = 'standard capture',
   EN_PASSANT = 'en passant',
@@ -45,39 +43,16 @@ export enum MoveType {
   STANDARD_MOVE = 'standard move',
 }
 
-export enum GameOverType {
-  WHITE_WIN = 'w',
-  BLACK_WIN = 'b',
-  DRAW = 'd',
-  STALEMATE = 's',
-}
+// Define possible types of castling
+export type CastleType = MoveType.KINGSIDE_CASTLE | MoveType.QUEENSIDE_CASTLE;
 
-export enum Flag {
-  PROMOTION = 'promotion',
-  DOUBLE = 'double',
-  PAWN_MOVE = 'pawn move',
-  CAPTURE = 'capture',
-  DISABLE_BLACK_QUEENSIDE_CASTLING = 'disable black queenside castling',
-  DISABLE_BLACK_KINGSIDE_CASTLING = 'disable black kingside castling',
-  DISABLE_WHITE_QUEENSIDE_CASTLING = 'disable white queenside castling',
-  DISABLE_WHITE_KINGSIDE_CASTLING = 'disable white kingside castling',
-}
-
-export enum PieceType {
-  KING = 'K',
-  QUEEN = 'Q',
-  BISHOP = 'B',
-  KNIGHT = 'N',
-  ROOK = 'R',
-  PAWN = 'P'
-}
-
+// Define structure for passing information about the result of a move outside of the validator
 export interface MoveResult {
   color: Color;
   from: number;
   to: number;
   piece: Piece;
-  result: X88Chessboard;
+  result: Chessboard;
   type: MoveType;
   captures?: number[],
   explode?: boolean,
@@ -85,7 +60,19 @@ export interface MoveResult {
   flags?: { [key in Flag]?: boolean },
 }
 
-// Define the possible chess squares
+// Define structure for passing information about the result of a move within the validator
+interface InternalMove {
+  board: Chessboard,
+  from: number,
+  to: number,
+  piece: Piece,
+  color: Color,
+  type: MoveType,
+  flags?: { [key in Flag]?: boolean },
+  enPassantSquare?: number,
+}
+
+// Define the possible chess squares in algebraic notation
 export type Square =
   'a8' | 'b8' | 'c8' | 'd8' | 'e8' | 'f8' | 'g8' | 'h8' |
   'a7' | 'b7' | 'c7' | 'd7' | 'e7' | 'f7' | 'g7' | 'h7' |
@@ -109,13 +96,63 @@ export type CastlingRights = Record<Color, Record<CastleType, boolean>>;
 
 // Define the structure for FEN (Forsyth–Edwards Notation) of the state of a chess game
 export type FEN = {
-  board: X88Chessboard, // Chess position
+  board: Chessboard, // Chess position
   activeColor: Color, // Color of the current player
   hasCastlingRights: CastlingRights, // Castling rights for both players
   enPassantTarget: number | null, // Squares where en passant captures are possible
   halfMoves: number, // Increments when a player moves and resets to 0 when a capture occurs or pawn advances
   fullMoves: number, // Increments when both players have completed a move
 }
+
+/**
+ * This chess validator uses some aspects of the 0x88 chessboard representation
+ * The chessboard is represented with an array of 128 elements
+ * Each square is represented with a number from 0x00 to 0x77
+ * An off the board check is easily done with a bitwise operation. if square & 0x88 is 0 than it is on the board otherwise it is off the board
+ * This also means we can easily add offsets
+ * The rank and file can also be accessed using bitwise operations
+ */
+
+// Maps chess squares in algebraic notation to 0x88 squares
+export const X88: Record<Square, number> = {
+  a1: 0x00, b1: 0x01, c1: 0x02, d1: 0x03, e1: 0x04, f1: 0x05, g1: 0x06, h1: 0x07,
+  a2: 0x10, b2: 0x11, c2: 0x12, d2: 0x13, e2: 0x14, f2: 0x15, g2: 0x16, h2: 0x17,
+  a3: 0x20, b3: 0x21, c3: 0x22, d3: 0x23, e3: 0x24, f3: 0x25, g3: 0x26, h3: 0x27,
+  a4: 0x30, b4: 0x31, c4: 0x32, d4: 0x33, e4: 0x34, f4: 0x35, g4: 0x36, h4: 0x37,
+  a5: 0x40, b5: 0x41, c5: 0x42, d5: 0x43, e5: 0x44, f5: 0x45, g5: 0x46, h5: 0x47,
+  a6: 0x50, b6: 0x51, c6: 0x52, d6: 0x53, e6: 0x54, f6: 0x55, g6: 0x56, h6: 0x57,
+  a7: 0x60, b7: 0x61, c7: 0x62, d7: 0x63, e7: 0x64, f7: 0x65, g7: 0x66, h7: 0x67,
+  a8: 0x70, b8: 0x71, c8: 0x72, d8: 0x73, e8: 0x74, f8: 0x75, g8: 0x76, h8: 0x77,
+};
+
+// Maps 0x88 squares to chess squares in algebraic notation
+export const X88_TO_SQUARE: Record<number, Square> = {
+  0x00: 'a1', 0x01: 'b1', 0x02: 'c1', 0x03: 'd1', 0x04: 'e1', 0x05: 'f1', 0x06: 'g1', 0x07: 'h1',
+  0x10: 'a2', 0x11: 'b2', 0x12: 'c2', 0x13: 'd2', 0x14: 'e2', 0x15: 'f2', 0x16: 'g2', 0x17: 'h2',
+  0x20: 'a3', 0x21: 'b3', 0x22: 'c3', 0x23: 'd3', 0x24: 'e3', 0x25: 'f3', 0x26: 'g3', 0x27: 'h3',
+  0x30: 'a4', 0x31: 'b4', 0x32: 'c4', 0x33: 'd4', 0x34: 'e4', 0x35: 'f4', 0x36: 'g4', 0x37: 'h4',
+  0x40: 'a5', 0x41: 'b5', 0x42: 'c5', 0x43: 'd5', 0x44: 'e5', 0x45: 'f5', 0x46: 'g5', 0x47: 'h5',
+  0x50: 'a6', 0x51: 'b6', 0x52: 'c6', 0x53: 'd6', 0x54: 'e6', 0x55: 'f6', 0x56: 'g6', 0x57: 'h6',
+  0x60: 'a7', 0x61: 'b7', 0x62: 'c7', 0x63: 'd7', 0x64: 'e7', 0x65: 'f7', 0x66: 'g7', 0x67: 'h7',
+  0x70: 'a8', 0x71: 'b8', 0x72: 'c8', 0x73: 'd8', 0x74: 'e8', 0x75: 'f8', 0x76: 'g8', 0x77: 'h8',
+};
+
+// Map player colors to opposite player colors
+export const ENEMY_COLOR: Record<Color, Color> = {
+  [Color.WHITE]: Color.BLACK,
+  [Color.BLACK]: Color.WHITE
+};
+
+// Define the ranks on the chessboard for each player starting from their side
+export const RANKS: Record<Color, { second: number, last: number }> = {
+  [Color.WHITE]: { second: 1, last: 7 },
+  [Color.BLACK]: { second: 6, last: 0 },
+};
+
+// Define the algebraic notation for each color of each piece
+export const KINGS: Record<Color, Piece> = { [Color.WHITE]: 'K', [Color.BLACK]: 'k' };
+export const ROOKS: Record<Color, Piece> = { [Color.WHITE]: 'R', [Color.BLACK]: 'r' };
+export const PAWNS: Record<Color, Piece> = { [Color.WHITE]: 'P', [Color.BLACK]: 'p' };
 
 // Map pieces to piece color
 export const PIECE_TO_COLOR: Record<Piece, Color> = {
@@ -130,7 +167,7 @@ export const PIECE_TO_COLOR: Record<Piece, Color> = {
   B: Color.WHITE,
   N: Color.WHITE,
   R: Color.WHITE,
-  P: Color.WHITE
+  P: Color.WHITE,
 };
 
 // Map pieces to piece type
@@ -146,10 +183,79 @@ export const PIECE_TO_TYPE: Record<Piece, PieceType> = {
   B: PieceType.BISHOP,
   N: PieceType.KNIGHT,
   R: PieceType.ROOK,
-  P: PieceType.PAWN
+  P: PieceType.PAWN,
 };
 
-// Map player colors to castles
+// Define common types of offset patterns on a chessboard
+export const OFFSETS: Record<string, number[]> = {
+  all: [-17, -16, -15, 1, 17, 16, 15, -1], // includes all adjacent squares
+  cross: [-16, 1, 16, -1], // includes horizontally and vertically adjacent squares
+  l: [-18, -33, -31, -14, 18, 33, 31, 14], // "L" shape movement of the knight, 2 squares in direction and 1 square in another
+  diagonal: [-17, -15, 17, 15], // includes diagonally adjacent squares
+};
+
+// Maps pieces to their corresponding movement patterns
+export const PIECE_MOVE_PATTERNS: Record<Piece, number[]> = {
+  k: OFFSETS.all,
+  q: OFFSETS.all,
+  b: OFFSETS.diagonal,
+  n: OFFSETS.l,
+  r: OFFSETS.cross,
+  p: [-16, -32],
+  K: OFFSETS.all,
+  Q: OFFSETS.all,
+  B: OFFSETS.diagonal,
+  N: OFFSETS.l,
+  R: OFFSETS.cross,
+  P: [16, 32],
+};
+
+// Maps pieces to their corresponding capture patterns
+// In atomic chess (unlike normal chess), kings can't capture because this would blow up the king and result in an instant loss
+export const PIECE_CAPTURE_PATTERNS: Record<Piece, number[]> = {
+  k: [],
+  q: OFFSETS.all,
+  b: OFFSETS.diagonal,
+  n: OFFSETS.l,
+  r: OFFSETS.cross,
+  p: [-17, -15],
+  K: [],
+  Q: OFFSETS.all,
+  B: OFFSETS.diagonal,
+  N: OFFSETS.l,
+  R: OFFSETS.cross,
+  P: [17, 15],
+};
+
+// In standard moves, kings, knights, and pawns only move once
+export const MOVES_ONCE: Record<Piece, boolean> = {
+  k: true,
+  q: false,
+  b: false,
+  n: true,
+  r: false,
+  p: true,
+  K: true,
+  Q: false,
+  B: false,
+  N: true,
+  R: false,
+  P: true,
+};
+
+// Maps chess colors to chess pieces of that color
+export const COLOR_TO_PIECES: Record<Color, Piece[]> = {
+  [Color.WHITE]: ['K', 'Q', 'B', 'N', 'R', 'P'],
+  [Color.BLACK]: ['k', 'q', 'b', 'n', 'r', 'p'],
+};
+
+// Maps chess colors to chess pieces a pawn of the color can promote to
+export const PROMOTABLE_PIECES: Record<Color, PromotablePiece[]> = {
+  [Color.WHITE]: ['Q', 'N', 'R', 'B'],
+  [Color.BLACK]: ['q', 'n', 'r', 'b'],
+};
+
+// Map chess colors to castling moves
 export const CASTLE_MOVES: Record<Color, Record<CastleType, { kingMove: { from: number, to: number }, rookMove: { from: number, to: number }, between: number[] }>> = {
   [Color.WHITE]: {
     [MoveType.KINGSIDE_CASTLE]: { kingMove: { from: X88.e1, to: X88.g1 }, rookMove: { from: X88.h1, to: X88.f1 }, between: [X88.f1, X88.g1] },
@@ -161,29 +267,17 @@ export const CASTLE_MOVES: Record<Color, Record<CastleType, { kingMove: { from: 
   },
 };
 
-// Map player colors to opposite player colors
-export const ENEMY_COLOR: Record<Color, Color> = {
-  [Color.WHITE]: Color.BLACK,
-  [Color.BLACK]: Color.WHITE
-};
-
-// Store pieces that pawns of each color can promote to
-export const PROMOTABLE_PIECES: Record<Color, PromotablePiece[]> = {
-  [Color.WHITE]: ['Q', 'N', 'R', 'B'],
-  [Color.BLACK]: ['q', 'n', 'r', 'b']
-};
-
 // Define initial castling rights of a chess game
 export const INITIAL_CASTLING_RIGHTS: CastlingRights = {
   [Color.WHITE]: { [MoveType.KINGSIDE_CASTLE]: true, [MoveType.QUEENSIDE_CASTLE]: true },
   [Color.BLACK]: { [MoveType.KINGSIDE_CASTLE]: true, [MoveType.QUEENSIDE_CASTLE]: true },
 };
 
-// Define the structure of a Chessboard
-export type X88Chessboard = (Piece | null)[];
+// Define the structure of a chessboard in the 0x88 chessboard representation, an array of size 128
+export type Chessboard = (Piece | null)[];
 
 // Define initial chess position of a chess game
-export const INITIAL_X88CHESSBOARD_POSITION: X88Chessboard = [
+export const INITIAL_X88CHESSBOARD_POSITION: Chessboard = [
   'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R', null, null, null, null, null, null, null, null,
   'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P', null, null, null, null, null, null, null, null,
   null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
@@ -204,49 +298,40 @@ export const INITIAL_GAMESTATE: FEN = {
   fullMoves: 1
 };
 
-// Define array of all chessboard squares
-export const CHESSBOARD_SQUARES: Square[] = Object.keys(X88) as Square[];
+// Gets the rank of the specified 0x88 square
+// In 0x88, 16 (2^4) numbers are used for each row (8 for the board, 8 as guard cells), so the 4th bit represents the row
+export function getRank(square: number): number {
+  return square >> 4;
+}
 
-export const KINGS: Record<Color, Piece> = {
-  [Color.WHITE]: 'K',
-  [Color.BLACK]: 'k',
-};
-
-export const ROOKS: Record<Color, Piece> = {
-  [Color.WHITE]: 'R',
-  [Color.BLACK]: 'r',
-};
-
-export const PAWNS: Record<Color, Piece> = {
-  [Color.WHITE]: 'P',
-  [Color.BLACK]: 'p',
-};
-
-export const RANKS: Record<Color, { second: number, last: number }> = {
-  [Color.WHITE]: { second: 1, last: 7 },
-  [Color.BLACK]: { second: 6, last: 0 },
-};
+// Gets the file of the specified 0x88 square
+// In 0x88, the first three bits represent the file of a square, so masking a square with 7 (00000111 in binary) gets the file
+export function getFile(square: number): number {
+  return square & 7;
+}
 
 // Function to check if a pawn at a given square can be promoted
-export function canPromotePawnAt(board: X88Chessboard, square: number): boolean {
+// A piece at a given square can be promoted if it is a pawn and it has reached the last rank (other side) of the board
+export function canPromotePawnAt(board: Chessboard, square: number): boolean {
   const piece = board[square];
   if (!piece || PIECE_TO_TYPE[piece] != PieceType.PAWN) return false;
   return getRank(square) == RANKS[PIECE_TO_COLOR[piece]].last;
 }
 
-// Moves a piece from one square to another
-export function movePiece(board: X88Chessboard, { from, to }: { from: number, to: number }) {
+// Moves a piece from one square to another on a given chessboard
+export function movePiece(board: Chessboard, { from, to }: { from: number, to: number }) {
   board[to] = board[from];
   board[from] = null;
 }
 
-// Explodes a piece at a given square
-export function explodePiece(board: X88Chessboard, square: number) {
+// Explodes a piece at a given square on a given chessboard
+export function explodePiece(board: Chessboard, square: number) {
   board[square] = null;
 }
 
 // Returns a list of surrounding squares that will explode given a target square being captured
-export function getSurroundingExplosions(board: X88Chessboard, square: number): number[] {
+// Adjacent squares will explode if they are not empty and are not pawns (exploding ally pieces is also possible)
+export function getSurroundingExplosions(board: Chessboard, square: number): number[] {
   return OFFSETS.all.map(offset => square + offset)
     .filter(square => {
       const piece = board[square];
@@ -255,79 +340,39 @@ export function getSurroundingExplosions(board: X88Chessboard, square: number): 
 }
 
 // Checks if the specified player is in atomic check
-export function isCheck(board: X88Chessboard, color: Color): boolean {
+// A king is in check if it is attacked by another piece
+// A king can't be in check if the two kings are adjacent because capturing it would blow up the other king as well
+export function isCheck(board: Chessboard, color: Color): boolean {
   const kingIndex = board.indexOf(KINGS[color]);
   const enemyKingIndex = board.indexOf(KINGS[ENEMY_COLOR[color]]);
   if (kingIndex == -1 || enemyKingIndex == -1 || OFFSETS.all.includes(kingIndex - enemyKingIndex)) return false;
   return isAttacked(board, kingIndex, color);
 }
 
-// finds square, moves backwards using the move directions of each piece until blocked, tries to find piece
-// knight and pawn move once when capturing, king can't capture
-export function isAttacked(board: X88Chessboard, square: number, color: Color): boolean {
-  const enemyColor = ENEMY_COLOR[color];
-  const enemyPieces = (Object.keys(PIECE_TO_COLOR) as Piece[]).filter(piece => PIECE_TO_COLOR[piece] == enemyColor);
-  for (const enemyPiece of enemyPieces) {
-    if (PIECE_TO_TYPE[enemyPiece] == PieceType.KING) continue;
-    const movesOnce = 'NP'.includes(PIECE_TO_TYPE[enemyPiece]);
-    let dirs = PIECE_MOVE_PATTERNS[enemyPiece];
-    if (enemyPiece == 'P') {
-      dirs = dirs.slice(2);
+// Finds if a square on a given chessboard is being attacked by a piece of a certain color
+// For every enemy piece, this function will start from the given square and move backwards using the capture patterns of the piece
+// If the correct enemy piece is found, the enemy piece is attacking the square
+// kings can't capture, knights and pawns only move once when capturing
+// ray pieces (bishop, queen, rook) can be blocked by other pieces in the way
+export function isAttacked(board: Chessboard, square: number, color: Color): boolean {
+  return COLOR_TO_PIECES[ENEMY_COLOR[color]].some(enemyPiece => PIECE_CAPTURE_PATTERNS[enemyPiece].some(dir => {
+    let to = square - dir;
+    while (!(to & 0x88)) {
+      const foundPiece = board[to];
+      if (foundPiece) return foundPiece == enemyPiece;
+      if (MOVES_ONCE[enemyPiece]) return false;
+      to -= dir;
     }
-    for (const dir of dirs) {
-      let to = square - dir;
-      while (!(to & 0x88)) {
-        const foundPiece = board[to];
-        if (foundPiece) {
-          if (foundPiece == enemyPiece) return true;
-          break;
-        }
-        if (movesOnce) break;
-        to -= dir;
-      }
-    }
-  }
-  return false;
+    return false;
+  }));
 }
 
-interface InternalMove {
-  board: X88Chessboard,
-  from: number,
-  to: number,
-  piece: Piece,
-  color: Color,
-  type: MoveType,
-  flags?: { [key in Flag]?: boolean },
-  enPassantSquare?: number,
-}
-
-export const OFFSETS: Record<string, number[]> = {
-  all: [-17, -16, -15, 1, 17, 16, 15, -1],
-  cross: [-16, 1, 16, -1],
-  l: [-18, -33, -31, -14, 18, 33, 31, 14],
-  diagonal: [-17, -15, 17, 15],
-};
-
-export const PIECE_MOVE_PATTERNS: Record<Piece, number[]> = {
-  k: OFFSETS.all,
-  q: OFFSETS.all,
-  b: OFFSETS.diagonal,
-  n: OFFSETS.l,
-  r: OFFSETS.cross,
-  p: [-16, -32, -17, -15],
-  K: OFFSETS.all,
-  Q: OFFSETS.all,
-  B: OFFSETS.diagonal,
-  N: OFFSETS.l,
-  R: OFFSETS.cross,
-  P: [16, 32, 17, 15],
-};
-
+// Class to keep track of the game state of an atomic chess game and validate moves
 export class AtomicChess {
-  board: X88Chessboard;
+  board: Chessboard;
   activeColor: Color;
   hasCastlingRights: CastlingRights;
-  enPassantSquare: number | null; // why is this even an array if only one single pawn can move two squares in one move
+  enPassantSquare: number | null;
   halfMoves: number;
   fullMoves: number;
 
@@ -397,24 +442,37 @@ export class AtomicChess {
     this.positionCount[position] = (this.positionCount[position] ?? 0) + 1;
   }
 
+  // Checks if the current player is able to move
   hasLegalMoves(): boolean {
-    return CHESSBOARD_SQUARES.some(from => this.getLegalMovesFrom(from).length > 0);
+    return (Object.keys(X88) as Square[]).some(from => this.getLegalMovesFrom(from).length > 0);
   }
-  isCheckmate(color: Color): boolean {
-    return isCheck(this.board, color) && !this.hasLegalMoves();
-  }
+
+  // Checks if the specified player has won either by checkmate or blowing up the enemy king so that it is no longer on the board
   isWin(activeColor: Color): boolean {
     return this.isCheckmate(ENEMY_COLOR[activeColor]) || this.board.indexOf(KINGS[ENEMY_COLOR[activeColor]]) == -1;
   }
+
+  // Checks if the game is a checkmate when the enemy king is in check and can't move
+  isCheckmate(color: Color): boolean {
+    return isCheck(this.board, color) && !this.hasLegalMoves();
+  }
+
+  // Checks if the game is a stalemate when the enemy king is not in check and can't move
   isStalemate(): boolean {
     return !isCheck(this.board, this.activeColor) && !this.hasLegalMoves() && this.board.indexOf(KINGS[this.activeColor]) > -1;
   }
+
+  // Checks if the game is a draw either by repetition or by failure to progress the game
   isDraw(): boolean {
     return this.isFiftyMoveDraw() || this.isThreeFoldRepetition();
   }
+
+  // Checks if the current position has appeared at least 3 times
   isThreeFoldRepetition(): boolean {
     return (this.positionCount[this.getPositionFEN()] ?? 0) >= 3;
   }
+
+  // Checks if it has been 50 moves since the last pawn moved or the last piece was captured
   isFiftyMoveDraw(): boolean {
     return this.halfMoves >= 50;
   }
@@ -433,13 +491,14 @@ export class AtomicChess {
     this.enPassantSquare = null;
   }
 
-  updateFlags({ enPassantSquare: enPassantTarget, flags }: MoveResult) {
+  // Updates the game state according to the flags raised in a move
+  updateFlags({ enPassantSquare, flags }: MoveResult) {
     if (!flags) return;
     if (flags[Flag.PAWN_MOVE] || flags[Flag.CAPTURE]) {
       this.halfMoves = 0;
     }
-    if (flags[Flag.DOUBLE] && enPassantTarget) {
-      this.enPassantSquare = enPassantTarget;
+    if (flags[Flag.DOUBLE] && enPassantSquare) {
+      this.enPassantSquare = enPassantSquare;
     }
     this.hasCastlingRights[Color.BLACK][MoveType.KINGSIDE_CASTLE] &&= !flags[Flag.DISABLE_BLACK_KINGSIDE_CASTLING];
     this.hasCastlingRights[Color.BLACK][MoveType.QUEENSIDE_CASTLE] &&= !flags[Flag.DISABLE_BLACK_QUEENSIDE_CASTLING];
@@ -458,7 +517,7 @@ export class AtomicChess {
     return legalMove;
   }
 
-  // Checks if the game is over and returns the result
+  // Checks if the game has ended and if so, how
   tryGameOver(): GameOverType | null {
     if (this.isDraw()) return GameOverType.DRAW;
     if (this.isStalemate()) return GameOverType.STALEMATE;
@@ -467,6 +526,7 @@ export class AtomicChess {
     return null;
   }
 
+  // Returns an array containing all the legal moves from the given square
   getLegalMovesFrom(square: Square): MoveResult[] {
     const from = X88[square];
     return [
@@ -489,13 +549,12 @@ export class AtomicChess {
     if (PIECE_TO_TYPE[piece] == PieceType.PAWN) return []; // pawns are built different
     const dirs = PIECE_MOVE_PATTERNS[piece];
     const moves: MoveResult[] = [];
-    const movesOnce = 'KN'.includes(PIECE_TO_TYPE[piece]); // king and knight can only move once
     for (const dir of dirs) {
       // try move in a ray
       let to = from + dir;
       while (!(to & 0x88 || this.board[to])) {
         moves.push(getMoveResult({ board: this.board, from, to, piece, color: this.activeColor, type: MoveType.STANDARD_MOVE }));
-        if (movesOnce) break;
+        if (MOVES_ONCE[piece]) break;
         to += dir;
       }
       if (PIECE_TO_TYPE[piece] == PieceType.KING) continue; // king can't capture
@@ -507,10 +566,12 @@ export class AtomicChess {
     return moves;
   }
 
+  // Gets possible pawn captures from a given square
+  // Pawns can either en passant or perform a standard capture
   getPawnCapturesFrom(from: number): MoveResult[] {
     const piece = this.board[from];
     if (piece != PAWNS[this.activeColor]) return [];
-    const capturable = PIECE_MOVE_PATTERNS[piece].slice(2).map(dir => from + dir);
+    const capturable = PIECE_CAPTURE_PATTERNS[piece].map(dir => from + dir);
     const captures = capturable.filter(to => {
       const found = this.board[to];
       return found && PIECE_TO_COLOR[found] == ENEMY_COLOR[this.activeColor];
@@ -520,6 +581,8 @@ export class AtomicChess {
     return [...captures, enPassant];
   }
 
+  // Gets possible pawn moves from a given square
+  // Pawns can move once and can move twice if they have not yet moved
   getPawnMovesFrom(from: number): MoveResult[] {
     const piece = this.board[from];
     if (piece != PAWNS[this.activeColor]) return [];
@@ -531,6 +594,9 @@ export class AtomicChess {
     return [firstMove, secondMove];
   }
 
+  // Gets possible castles of the given type from a given square
+  // Castling is only possible when it is done from the original king position, the king has not moved, the rook being castled has not moved or been captured,
+  // the king is not in check before or after castling, and none of the squares in between are attacked or are occupied
   getCastlesFrom(type: CastleType, from: number): MoveResult[] {
     const { kingMove, between, rookMove } = CASTLE_MOVES[this.activeColor][type];
     if (!this.hasCastlingRights[this.activeColor][type] || from != kingMove.from) return [];
@@ -541,6 +607,7 @@ export class AtomicChess {
   }
 }
 
+// Returns the simulated result of a move
 function getMoveResult({ board, from, to, color, piece, type, flags, enPassantSquare }: InternalMove): MoveResult {
   const result = structuredClone(board);
   let captures: number[] = [];

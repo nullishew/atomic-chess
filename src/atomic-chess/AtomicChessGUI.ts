@@ -1,7 +1,7 @@
 import { Scene, Tilemaps, GameObjects, Sound } from "phaser";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { ChessPiece } from "./ChessPieceSprite";
-import { Color, GameOverType, X88Chessboard, X88_TO_SQUARE, Square, INITIAL_X88CHESSBOARD_POSITION, PromotablePiece, PROMOTABLE_PIECES, MoveResult, MoveType, CASTLE_MOVES, X88, getFile, getRank } from "./AtomicChess";
+import { Color, GameOverType, Chessboard, X88_TO_SQUARE, Square, INITIAL_X88CHESSBOARD_POSITION, PromotablePiece, PROMOTABLE_PIECES, MoveResult, MoveType, CASTLE_MOVES, X88, getFile, getRank } from "./AtomicChess";
 
 
 // Define a class to manage the graphical user interface of an atomic chess game
@@ -130,7 +130,7 @@ export class AtomicChessGUI {
   }
 
   // Create sprites for all chess pieces on the specified board
-  createChessPieces(board: X88Chessboard) {
+  createChessPieces(board: Chessboard) {
     this.chessPieces = board.map((piece, index) => {
       if (!piece) return null;
       const { x, y } = this.squareToWorldXY(X88_TO_SQUARE[index]);
