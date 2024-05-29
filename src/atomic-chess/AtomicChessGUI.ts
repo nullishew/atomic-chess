@@ -1,7 +1,7 @@
 import { Scene, Tilemaps, GameObjects, Sound } from "phaser";
 import { ASSETS, PIECE_TO_TEXTURE_FRAME } from "../assets";
 import { ChessPiece } from "./ChessPieceSprite";
-import { Color, GameOverType, X88Chessboard, X88_TO_SQUARE, Piece, Square, INITIAL_X88CHESSBOARD_POSITION, PromotablePiece, PROMOTABLE_PIECES, MoveResult, MoveType, CASTLE_MOVES, X88, getFile, getRank } from "./AtomicChess";
+import { Color, GameOverType, X88Chessboard, X88_TO_SQUARE, Square, INITIAL_X88CHESSBOARD_POSITION, PromotablePiece, PROMOTABLE_PIECES, MoveResult, MoveType, CASTLE_MOVES, X88, getFile, getRank } from "./AtomicChess";
 
 
 // Define a class to manage the graphical user interface of an atomic chess game
@@ -12,6 +12,7 @@ export class AtomicChessGUI {
   chessboardTileLayer: Tilemaps.TilemapLayer; // Tilemap layer to display chessboard squares and map squares to world positions
   moveIndicatorLayer: Tilemaps.TilemapLayer;
   captureIndicatorLayer: Tilemaps.TilemapLayer;
+  chessboardOutline: GameObjects.Rectangle;
 
   chessPieces: (ChessPiece | null)[]; // Map squares to corresponding chess piece sprites
 
@@ -26,57 +27,6 @@ export class AtomicChessGUI {
   promotionMenus: Record<Color, GameObjects.Container>;
   gameOverMenus: Record<GameOverType, GameObjects.Container>;
 
-  addTileOutline() {
-    const tileSize = this.chessboard.tileHeight;
-    return this.scene.add.rectangle(0, 0, tileSize, tileSize).setStrokeStyle(tileSize * .125, 0xffffff, 1)
-      .setOrigin(0)
-      .setVisible(false);
-  }
-
-  addChessboard(tileSize: number) {
-    const tileData = [
-      [0, 1, 0, 1, 0, 1, 0, 1],
-      [1, 0, 1, 0, 1, 0, 1, 0],
-      [0, 1, 0, 1, 0, 1, 0, 1],
-      [1, 0, 1, 0, 1, 0, 1, 0],
-      [0, 1, 0, 1, 0, 1, 0, 1],
-      [1, 0, 1, 0, 1, 0, 1, 0],
-      [0, 1, 0, 1, 0, 1, 0, 1],
-      [1, 0, 1, 0, 1, 0, 1, 0]
-    ];
-    const map = this.scene.make.tilemap({ data: tileData, tileWidth: tileSize, tileHeight: tileSize });
-    const chessSquareTileset = map.addTilesetImage(ASSETS.CHESSBOARD_TILES.key) as Tilemaps.Tileset;
-    const x = -4 * tileSize;
-    const y = -4 * tileSize;
-    const chessTileLayer = map.createLayer(0, chessSquareTileset, x, y) as Tilemaps.TilemapLayer;
-    const captureTileset = map.addTilesetImage(ASSETS.CHESS_CAPTURE_INDICATOR.key) as Tilemaps.Tileset;
-    const captureIndicatorLayer = (map.createBlankLayer('Capture Indicators', captureTileset, x, y) as Tilemaps.TilemapLayer)
-      .fill(0, 0, 0, 8, 8);
-    const moveTileset = map.addTilesetImage(ASSETS.CHESS_MOVE_INDICATOR.key) as Tilemaps.Tileset;
-    const moveIndicatorLayer = (map.createBlankLayer('Move Indicators', moveTileset, x, y) as Tilemaps.TilemapLayer)
-      .fill(0, 0, 0, 8, 8);
-    return { map: map, chessTileLayer: chessTileLayer, captureIndicatorLayer: captureIndicatorLayer, moveIndicatorLayer: moveIndicatorLayer };
-  }
-
-  addChessboardOutline(lineWidth: number, glowStrength: number, glowDistance: number) {
-    const { width, height } = this.chessboardTileLayer;
-    const outline = this.scene.add.rectangle(0, 0, width + lineWidth, height + lineWidth, 0x252525);
-    outline.postFX.addGlow(0xffffff, glowStrength, 0, false, 1, glowDistance);
-    return outline;
-  }
-
-  // Function to create sprites for all chess pieces based on the specified board
-  addChessPieces(board: X88Chessboard) {
-    const container = this.scene.add.container();
-    const sprites = board.map((piece, index) => {
-      if (!piece) return null;
-      const { x, y } = this.x88ToWorldXY(index);
-      const sprite = this.scene.add.existing(new ChessPiece(this.scene, PIECE_TO_TEXTURE_FRAME[piece], x, y));
-      container.add(sprite);
-      return sprite;
-    });
-    return { container: container, sprites: sprites };
-  }
 
   constructor({ scene, tileSize, pieceMoveTime, gameOverMenuCallback: gameOverCallback }: { scene: Scene; tileSize: number; pieceMoveTime: number; gameOverMenuCallback: () => any; }) {
     this.scene = scene;
@@ -86,25 +36,17 @@ export class AtomicChessGUI {
     // Center game view
     scene.cameras.main.centerOn(0, 0);
 
-    // Add chessboard
-    ({
-      map: this.chessboard,
-      chessTileLayer: this.chessboardTileLayer,
-      captureIndicatorLayer: this.captureIndicatorLayer,
-      moveIndicatorLayer: this.moveIndicatorLayer
-    } = this.addChessboard(tileSize));
+    // Create game elements
+    this.createsChessboard(tileSize);
+    this.createChessPieces(INITIAL_X88CHESSBOARD_POSITION);
+    const chessPieceContainer = scene.add.container(0, 0, this.chessPieces.flatMap(sprite => sprite ?? []));
 
-    const outline = this.addChessboardOutline(tileSize * .25, .125 * tileSize, .375 * tileSize);
+    // Create indicators to indicate game actions
+    this.createMoveIndicators();
+    this.pointerTileOutline = this.addTileOutline(tileSize);
+    this.selectedTileOutline = this.addTileOutline(tileSize);
 
-    // Add chess pieces
-    let chessPieceContainer;
-    ({ sprites: this.chessPieces, container: chessPieceContainer } = this.addChessPieces(INITIAL_X88CHESSBOARD_POSITION));
-
-    // Add tile indicators (mouse hover, selected)
-    this.pointerTileOutline = this.addTileOutline();
-    this.selectedTileOutline = this.addTileOutline();
-
-    // Add explosion particles
+    // Create explosion particles
     this.explosionParticles = scene.add.particles(0, 0, ASSETS.PARTICLE.key, {
       speed: { min: 300, max: 600 },
       scale: { start: .6, end: 0, random: true },
@@ -113,9 +55,8 @@ export class AtomicChessGUI {
       emitting: false,
     });
 
-    // Add explosion sound
+    // Create explosion sound
     this.explosionSound = scene.sound.add(ASSETS.EXPLOSION.key);
-
 
     // Create menus for when the game ends
     this.gameOverMenus = {
@@ -126,66 +67,118 @@ export class AtomicChessGUI {
     };
 
     // Define render order
-    const gameLayer = scene.add.layer([
-      outline,
+    scene.add.layer([
+      this.chessboardOutline,
       this.chessboardTileLayer,
       chessPieceContainer,
       this.pointerTileOutline,
       this.selectedTileOutline,
       this.moveIndicatorLayer,
       this.captureIndicatorLayer,
-      this.explosionParticles
-    ]);
-
-    const menusLayer = scene.add.layer([
+      this.explosionParticles,
       this.gameOverMenus[GameOverType.WHITE_WIN],
       this.gameOverMenus[GameOverType.BLACK_WIN],
       this.gameOverMenus[GameOverType.DRAW],
       this.gameOverMenus[GameOverType.STALEMATE],
     ]);
 
-
-
   }
 
-  // Method to create a promotion menu for pawns
+  // Creates the chessboard tilemap to be used to position pieces and adds chess square tiles
+  createsChessboard(tileSize: number) {
+    // Add chessboard
+    const chessTileData = [
+      [0, 1, 0, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 0],
+      [0, 1, 0, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 0],
+      [0, 1, 0, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 0],
+      [0, 1, 0, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 0]
+    ];
+    this.chessboard = this.scene.make.tilemap({ data: chessTileData, tileWidth: tileSize, tileHeight: tileSize });
+
+    // Add chessboard tiles centered at (0, 0) to represent chess squares
+    const chessSquareTileset = this.chessboard.addTilesetImage(ASSETS.CHESSBOARD_TILES.key) as Tilemaps.Tileset;
+    this.chessboardTileLayer = this.chessboard.createLayer(0, chessSquareTileset, -4 * tileSize, -4 * tileSize) as Tilemaps.TilemapLayer;
+
+    // Add chessboard outline
+    const { width, height } = this.chessboardTileLayer;
+    const lineWidth = tileSize * .25;
+    this.chessboardOutline = this.scene.add.rectangle(0, 0, width + lineWidth, height + lineWidth, 0x252525);
+    this.chessboardOutline.postFX.addGlow(0xffffff, .125 * tileSize, 0, false, 1, .375 * tileSize);
+  }
+
+  // Creates graphics at each square to indicate valid moves
+  createMoveIndicators() {
+    // Get coordinates to center the chessboard at (0, 0)
+    const { x, y } = this.chessboardTileLayer.getTopLeft();
+
+    // Add graphics to indicate possible captures
+    const captureTileset = this.chessboard.addTilesetImage(ASSETS.CHESS_CAPTURE_INDICATOR.key) as Tilemaps.Tileset;
+    this.captureIndicatorLayer = (this.chessboard.createBlankLayer('Capture Indicators', captureTileset, x, y) as Tilemaps.TilemapLayer)
+      .fill(0, 0, 0, 8, 8);
+
+    // Add graphics to indicate possible moves
+    const moveTileset = this.chessboard.addTilesetImage(ASSETS.CHESS_MOVE_INDICATOR.key) as Tilemaps.Tileset;
+    this.moveIndicatorLayer = (this.chessboard.createBlankLayer('Move Indicators', moveTileset, x, y) as Tilemaps.TilemapLayer)
+      .fill(0, 0, 0, 8, 8);
+
+    // Initially hide move and capture indicators
+    this.indicateValidMoves({});
+  }
+
+  // Create sprites for all chess pieces on the specified board
+  createChessPieces(board: X88Chessboard) {
+    this.chessPieces = board.map((piece, index) => {
+      if (!piece) return null;
+      const { x, y } = this.squareToWorldXY(X88_TO_SQUARE[index]);
+      return this.scene.add.existing(new ChessPiece(this.scene, PIECE_TO_TEXTURE_FRAME[piece], x, y));
+    });
+  }
+
+  // Creates 
+  addTileOutline(tileSize: number) {
+    return this.scene.add.rectangle(0, 0, tileSize, tileSize).setStrokeStyle(tileSize * .125, 0xffffff, 1)
+      .setOrigin(0)
+      .setVisible(false);
+  }
+
+  // Create a promotion menu displaying options for pawn promotions
   createPromotionMenu(color: Color, square: Square, callback: (piece: PromotablePiece) => any): GameObjects.Container {
     const scene = this.scene;
     const { x, y } = this.squareToWorldXY(square);
     const tileSize = this.chessboard.tileHeight;
-    const container = scene.add.container(x, y);
-    const buttonData = PROMOTABLE_PIECES[color].map((piece, i) => ({
-      piece: piece,
-      buttonY: (color == Color.WHITE ? 1 : -1) * i * tileSize
-    }));
-    const backgrounds = buttonData.map(({ buttonY }) => scene.add.graphics()
-      .fillStyle(0x303c4f, 1)
-      .fillRect(0, buttonY, tileSize, tileSize)
-      .lineStyle(.125 * tileSize, 0x000000)
-      .strokeRect(0, buttonY, tileSize, tileSize)
-    );
-    const buttons = buttonData.map(({ piece, buttonY }) => scene.add.image(0, buttonY, ASSETS.CHESS_PIECES.key, PIECE_TO_TEXTURE_FRAME[piece])
+    const container = scene.add.container(x, y + (color == Color.BLACK ? -3 * tileSize : 0));
+    const background = scene.add.rectangle(0, 0, tileSize, tileSize * 4, 0xffffff, 1)
+      .setOrigin(0)
+      .setStrokeStyle(2, 0x000000, .5);
+    const pieces = PROMOTABLE_PIECES[color];
+    if (color == Color.BLACK) {
+      pieces.reverse();
+    }
+    const buttons = pieces.map((piece, i) => scene.add.image(0, i * tileSize, ASSETS.CHESS_PIECES.key, PIECE_TO_TEXTURE_FRAME[piece])
       .setOrigin(0)
       .setInteractive({ useHandCursor: true })
       .once('pointerdown', () => {
         callback(piece);
         container.destroy();
-      })
-    );
-    return container.add(backgrounds)
+      }));
+    return container.add(background)
       .add(buttons);
   }
 
-  // Method to create a game over menu
+  // Create a game over menu
   createGameOverMenu(text: string, elems: GameObjects.GameObject[], callback: () => any): GameObjects.Container {
     const scene = this.scene;
     const menu = scene.add.container(0, 0);
-    // const background = scene.add.image(0, 0, ASSETS.MENU.key);
     const background = scene.add.graphics()
       .fillStyle(0xfffffff, .5)
       .fillRect(-64, -64, 128, 128);
     const textElem = scene.add.text(0, -32, text, { color: 'black', fontFamily: 'Super Dream', fontSize: 24 })
       .setResolution(48)
+      .setStroke('rgba(255, 255, 255, .5)', 2)
       .setOrigin(.5);
     const button = scene.add.image(0, 32, ASSETS.RETRY.key)
       .setOrigin(.5)
@@ -199,53 +192,45 @@ export class AtomicChessGUI {
     ]);
   }
 
-  // Method to highlight a square when hovered over
-  highlightSquare(square: Square | null) {
+  // Highlights a square with the specified tile outline
+  highlightSquare(outline: GameObjects.Rectangle, square: Square | null) {
     if (!square) {
-      this.pointerTileOutline.visible = false;
+      outline.visible = false;
       return;
     }
     const { x, y } = this.squareToWorldXY(square);
-    this.pointerTileOutline.setPosition(x, y)
+    outline.setPosition(x, y)
       .setVisible(true);
   }
 
-  // Method to select a square
-  selectSquare(square: Square) {
-    const { x, y } = this.squareToWorldXY(square);
-    this.selectedTileOutline.setPosition(x, y)
-      .setVisible(true);
-  }
-
-  // Method to deselect a square
-  deselectSquare() {
-    this.selectedTileOutline.visible = false;
-  }
-
-  indicateValidMoves({ captures, moves }: { captures: number[]; moves: number[]; }) {
+  // Update graphics to indicate valid moves and captures
+  indicateValidMoves({ captures, moves }: { captures?: number[]; moves?: number[]; }) {
     [this.captureIndicatorLayer, this.moveIndicatorLayer].flatMap(layer => layer.getTilesWithin(0, 0, 8, 8))
       .forEach(tile => tile?.setVisible(false));
-    for (const square of captures) {
+    captures?.forEach(square => {
       const { x, y } = this.x88ToTileXY(square);
       this.captureIndicatorLayer.getTileAt(x, y)?.setVisible(true);
-    }
-    for (const square of moves) {
+    });
+    moves?.forEach(square => {
       const { x, y } = this.x88ToTileXY(square);
-      this.moveIndicatorLayer.getTileAt(x, y)?.setVisible(true)
-    }
+      this.moveIndicatorLayer.getTileAt(x, y)?.setVisible(true);
+    })
   }
 
-  movePiece(from: number, to: number) {
-    const { x, y } = this.x88ToWorldXY(to);
+  // Animates chess piece movement and updates internal position
+  movePiece({ from, to }: { from: number; to: number; }) {
+    const { x, y } = this.squareToWorldXY(X88_TO_SQUARE[to]);
     this.chessPieces[from]?.move(x, y, this.pieceMoveTime);
     this.chessPieces[to] = this.chessPieces[from];
     this.chessPieces[from] = null;
   }
 
-  explodePiece(square: number) {
+  // Updates internal position and animates an explosion effect delayed until all pieces have finshed moving
+  explodePiece = (square: number) => {
     const sprite = this.chessPieces[square];
     if (!sprite) return;
-    this.chessPieces[square] = null;
+    this.chessPieces[square] = null; // Remove chess piece from existing chess pieces
+    // Add explosion effect after piece movement delay
     this.scene.time.addEvent({
       delay: this.pieceMoveTime,
       callback: () => {
@@ -258,21 +243,20 @@ export class AtomicChessGUI {
     });
   }
 
-  // Method to update GUI based on game actions
-  update({ color, type: moveType, captures, explode, from, to }: MoveResult) {
-    captures?.forEach(this.explodePiece.bind(this));
-    if (moveType == MoveType.KINGSIDE_CASTLE || moveType == MoveType.QUEENSIDE_CASTLE) {
-      const { kingMove, rookMove } = CASTLE_MOVES[color][moveType];
-      this.movePiece(kingMove.from, kingMove.to);
-      this.movePiece(rookMove.from, rookMove.to);
-    } else {
-      this.movePiece(from, to);
-      if (explode) {
-        this.explodePiece(to);
-      }
+  // Method to update GUI based on a given move
+  update({ color, type, captures, explode, from, to }: MoveResult) {
+    captures?.forEach(this.explodePiece);
+    this.movePiece({ from, to });
+    // Moves the rook if the player is castling since only the king's move is given
+    if (type == MoveType.KINGSIDE_CASTLE || type == MoveType.QUEENSIDE_CASTLE) {
+      this.movePiece(CASTLE_MOVES[color][type].rookMove);
+    }
+    if (explode) {
+      this.explodePiece(to);
     }
   }
 
+  // Animates the game over menu to appear
   showGameOverMenu(gameOverType: GameOverType) {
     this.scene.tweens.add({
       targets: this.gameOverMenus[gameOverType].setVisible(true),
@@ -283,48 +267,31 @@ export class AtomicChessGUI {
     });
   }
 
+  // Promotes the chess piece at the specified square to the specified piece
   promoteSprite(square: Square, piece: PromotablePiece) {
     this.chessPieces[X88[square]]?.promote(piece);
   }
 
-
-
-
-  // spaghetti units
-  squareToTileXY(square: Square): Phaser.Types.Math.Vector2Like {
-    return this.x88ToTileXY(X88[square]);
-  }
-
-  tileXYToSquare(x: number, y: number): Square | null {
-    return X88_TO_SQUARE[this.tileXYToX88(x, y)] ?? null;
-  }
-
+  // Converts a tile position to the corresponding 0x88 square
   tileXYToX88(x: number, y: number): number {
     return 16 * (7 - y) + x;
   }
 
+  // Converts a 0x88 square to the corresponding tile position
   x88ToTileXY(square: number): Phaser.Types.Math.Vector2Like {
     return { x: getFile(square), y: 7 - getRank(square) };
   }
 
-  x88ToWorldXY(square: number): Phaser.Types.Math.Vector2Like {
-    const { x, y } = this.x88ToTileXY(square);
-    return this.chessboardTileLayer.tileToWorldXY(x, y);
-  }
-
+  // Converts a square to the corresponding world position
   squareToWorldXY(square: Square): Phaser.Math.Vector2 {
-    const { x, y } = this.squareToTileXY(square);
+    const { x, y } = this.x88ToTileXY(X88[square]);
     return this.chessboardTileLayer.tileToWorldXY(x, y);
   }
 
+  // Converts a world position to the corresponding square
   worldXYToSquare(x: number, y: number): Square | null {
     const { x: tileX, y: tileY } = this.chessboardTileLayer.worldToTileXY(x, y);
-    return this.tileXYToSquare(tileX, tileY);
-  }
-
-  worldXYToIndex(x: number, y: number): number {
-    const { x: f, y: r } = this.chessboardTileLayer.worldToTileXY(x, y);
-    return 16 * (7 - r) + f;
+    return X88_TO_SQUARE[this.tileXYToX88(tileX, tileY)];
   }
 
 }

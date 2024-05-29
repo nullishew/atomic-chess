@@ -378,8 +378,8 @@ export class AtomicChess {
     if (castlingRights == '') {
       castlingRights = '-';
     }
-    const enPassant = this.enPassantSquare ? X88_TO_SQUARE[this.enPassantSquare] : '';
-    return `${position} ${activeColor} ${castlingRights} ${enPassant} ${this.halfMoves} ${this.fullMoves}`;
+    const enPassant = this.enPassantSquare ? X88_TO_SQUARE[this.enPassantSquare] + ' ' : '';
+    return `${position} ${activeColor} ${castlingRights} ${enPassant}${this.halfMoves} ${this.fullMoves}`;
   }
 
   constructor(state: FEN) {

@@ -5,8 +5,8 @@ import { chessTileSize } from "../main";
 
 // Game scene class definition
 export class Game extends Scene {
-  chessLogic: AtomicChess;
-  chessGUI: AtomicChessGUI;
+  chessLogic: AtomicChess; // Handles move validation and stores the state of the game
+  chessGUI: AtomicChessGUI; // Handles graphics and sound effects f the game
 
   selectedSquare: Square | null;
   pointerSquare: Square | null;
@@ -23,16 +23,12 @@ export class Game extends Scene {
     // Fade in camera
     this.cameras.main.fadeIn(3000, 0, 0, 0);
 
-    // Initialize game over status
+    // Initialize game state
     this.isGameOver = false;
-
-    // Initialize promotion status
     this.isPromoting = false;
-
-    // Initialize atomic chess game
     this.chessLogic = new AtomicChess(structuredClone(INITIAL_GAMESTATE));
 
-    // Initialize atomic chess gui
+    // Initialize GUI
     this.chessGUI = new AtomicChessGUI({
       scene: this,
       tileSize: chessTileSize,
@@ -45,28 +41,28 @@ export class Game extends Scene {
         });
       }
     });
-    this.chessGUI.indicateValidMoves({ captures: [], moves: [] });
 
-    // Add pointer input to keep track of the square the pointer is currently hovering over
+    // Pointer input that updates when the pointer moves
     this.input.on('pointermove', () => {
+      // Keeps track of the square the pointer is currently hovering over
       const { x, y } = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
       this.pointerSquare = this.chessGUI.worldXYToSquare(x, y);
+
+      // Highlights the square the pointer is currently hovering over
+      if (this.isGameOver || this.isPromoting) return; // Prevent ui updates when promoting a pawn or the game is over
+      this.chessGUI.highlightSquare(this.chessGUI.pointerTileOutline, this.pointerSquare);
     });
 
-    // Add pointer input to indicate the square the pointer is currently hovering over
-    this.input.on('pointermove', () => {
-      if (this.isGameOver || this.isPromoting) return;
-      this.chessGUI.highlightSquare(this.pointerSquare);
-    });
-
-    // Add pointer input to select squares and make moves when squares are clicked
+    // Pointer input that updates when the screen is clicked
     this.input.on('pointerdown', () => {
-      if (this.isGameOver || this.isPromoting) return;
+      if (this.isGameOver || this.isPromoting) return;  // Prevent ui updates when promoting a pawn or the game is over
       const { pointerSquare } = this;
+      // Deselect square if a square is not being clicked
       if (!pointerSquare) {
         this.deselectSquare();
         return;
       }
+      // Selects a square if it contains a piece of the current player's color
       const { activeColor, board } = this.chessLogic;
       const piece = board[X88[pointerSquare]];
       if (piece && PIECE_TO_COLOR[piece] == activeColor) {
@@ -74,24 +70,27 @@ export class Game extends Scene {
         return;
       }
       if (!this.selectedSquare) return;
-      const square = this.selectedSquare;
+      // Attempts to make a move if a square of the current color is already selected and the currently selected square is not of the same color
+      this.tryMove({ from: this.selectedSquare, to: pointerSquare });
       this.deselectSquare();
-      this.tryMove({ from: square, to: pointerSquare });
     });
 
-    const space = this?.input?.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    space?.on('down', () => console.log(this.chessLogic.getFEN()));
+    // const space = this?.input?.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    // space?.on('down', () => console.log(this.chessLogic.getFEN()));
   }
 
   // Attempt to make a move
   tryMove(move: { from: Square, to: Square }) {
+    // Validate move
     const { to } = move;
     const { activeColor } = this.chessLogic;
-    const response = this.chessLogic.tryMove(move);
-    if (!response) return;
-    this.chessGUI.update(response);
-    const { flags } = response;
-    console.table(response);
+    const result = this.chessLogic.tryMove(move);
+    if (!result) return;
+    // Update GUI
+    this.chessGUI.update(result);
+    const { flags } = result;
+    console.table(result);
+    // When a pawn is promoting, show the promotion menu, update the game state, and update the game when the user selects a piece to promote to
     if (flags?.[Flag.PROMOTION]) {
       this.isPromoting = true;
       this.chessGUI.createPromotionMenu(activeColor, to, (piece: PromotablePiece) => {
@@ -102,13 +101,16 @@ export class Game extends Scene {
       });
       return; // prevent attempting to end the game before player has promoted the pawn
     }
+    // Checks if the game is over
     this.tryGameOver();
   }
 
-  // Check for game over condition
+  // Check if the game is already over
   tryGameOver() {
+    // Check for conditions to end the game
     const gameOverType = this.chessLogic.tryGameOver();
     if (!gameOverType) return;
+    // Update game state and GUI
     this.isGameOver = true;
     this.chessGUI.showGameOverMenu(gameOverType);
   }
@@ -116,22 +118,25 @@ export class Game extends Scene {
   // Select a square
   selectSquare(square: Square) {
     this.selectedSquare = square;
-    this.chessGUI.selectSquare(square);
 
-    // Show circles and dots to indicate valid moves and captures
+    // Highlight the selected square with an outline
+    this.chessGUI.highlightSquare(this.chessGUI.selectedTileOutline, square);
+
+    // Show graphics to indicate valid moves and captures
     const validMoves = this.chessLogic.getLegalMovesFrom(square);
-    console.log(validMoves);
     this.chessGUI.indicateValidMoves({
-      captures: validMoves.filter(({ type: moveType }) => moveType == MoveType.CAPTURE).map(({ to }) => to),
-      moves: validMoves.filter(({ type: moveType }) => moveType != MoveType.CAPTURE).map(({ to }) => to),
+      captures: validMoves.filter(({ type }) => type == MoveType.CAPTURE).map(({ to }) => to),
+      moves: validMoves.filter(({ type }) => type != MoveType.CAPTURE).map(({ to }) => to),
     });
   }
 
   // Deselect a square
   deselectSquare() {
     this.selectedSquare = null;
-    this.chessGUI.deselectSquare();
-    this.chessGUI.highlightSquare(null);
-    this.chessGUI.indicateValidMoves({ captures: [], moves: [] });
+
+    // Update GUI
+    this.chessGUI.highlightSquare(this.chessGUI.selectedTileOutline, null);
+    this.chessGUI.highlightSquare(this.chessGUI.pointerTileOutline, null);
+    this.chessGUI.indicateValidMoves({});
   }
 }
