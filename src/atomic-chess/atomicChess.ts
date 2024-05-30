@@ -106,11 +106,11 @@ export type FEN = {
 
 /**
  * This chess validator uses some aspects of the 0x88 chessboard representation
- * The chessboard is represented with an array of 128 elements
- * Each square is represented with a number from 0x00 to 0x77
- * An off the board check is easily done with a bitwise operation. if square & 0x88 is 0 than it is on the board otherwise it is off the board
- * This also means we can easily add offsets
- * The rank and file can also be accessed using bitwise operations
+ * The chessboard is represented with an array of 128 elements with 8 squares and 8 guard cells for each of 16 rows
+ * This allows each square is represented as an 8 bit number (eg. h8 = 01110111) where
+ * bits 1 - 3 represent the file, if the 4th bit is flipped, the square has an invalid file
+ * bits 4 - 6 represent the rank, if the 8th bit is flipped, the square has an invalid rank
+ * This makes it easy to add offsets to squares for piece movement and also perform off the board checks with bitwise operations
  */
 
 // Maps chess squares in algebraic notation to 0x88 squares
@@ -299,7 +299,7 @@ export const INITIAL_GAMESTATE: FEN = {
 };
 
 // Gets the rank of the specified 0x88 square
-// In 0x88, 16 (2^4) numbers are used for each row (8 for the board, 8 as guard cells), so the 4th bit represents the row
+// In 0x88, 16 (2^4) numbers are used for each row (8 for the board, 8 as guard cells), so the bits starting from the 5th bit represent the row
 export function getRank(square: number): number {
   return square >> 4;
 }
@@ -308,6 +308,14 @@ export function getRank(square: number): number {
 // In 0x88, the first three bits represent the file of a square, so masking a square with 7 (00000111 in binary) gets the file
 export function getFile(square: number): number {
   return square & 7;
+}
+
+// Checks if the specified square is on the board
+// Uses bitwise and with 0x88 (10001000 in binary) to check the 4th and 8th bits
+// 4th bit flipped -> invalid file, 8th bit flipped -> invalid rank
+// square & 0x88 will only be 0 if neither the 4th nor 8th bit are flipped
+export function isValidSquare(square: number) {
+  return (square & 0x88) == 0;
 }
 
 // Function to check if a pawn at a given square can be promoted
@@ -349,7 +357,7 @@ export function isCheck(board: Chessboard, color: Color): boolean {
   return isAttacked(board, kingIndex, color);
 }
 
-// Finds if a square on a given chessboard is being attacked by a piece of a certain color
+// Checks if a square on a given chessboard is being attacked by a piece of a certain color
 // For every enemy piece, this function will start from the given square and move backwards using the capture patterns of the piece
 // If the correct enemy piece is found, the enemy piece is attacking the square
 // kings can't capture, knights and pawns only move once when capturing
@@ -357,7 +365,7 @@ export function isCheck(board: Chessboard, color: Color): boolean {
 export function isAttacked(board: Chessboard, square: number, color: Color): boolean {
   return COLOR_TO_PIECES[ENEMY_COLOR[color]].some(enemyPiece => PIECE_CAPTURE_PATTERNS[enemyPiece].some(dir => {
     let to = square - dir;
-    while (!(to & 0x88)) {
+    while (isValidSquare(to)) {
       const foundPiece = board[to];
       if (foundPiece) return foundPiece == enemyPiece;
       if (MOVES_ONCE[enemyPiece]) return false;
@@ -369,16 +377,17 @@ export function isAttacked(board: Chessboard, square: number, color: Color): boo
 
 // Class to keep track of the game state of an atomic chess game and validate moves
 export class AtomicChess {
-  board: Chessboard;
-  activeColor: Color;
-  hasCastlingRights: CastlingRights;
-  enPassantSquare: number | null;
-  halfMoves: number;
-  fullMoves: number;
+  board: Chessboard; // Keeps track of tthee chess position using the 0x88 representation
+  activeColor: Color; // Current player color
+  hasCastlingRights: CastlingRights; // Castling rights of each player
+  enPassantSquare: number | null; // En passantable squares
+  halfMoves: number; // Moves since last capture or pawn advance
+  fullMoves: number; // Number of moves completed by each player
 
   history: string[] = [];
   positionCount: Record<string, number> = {};
 
+  // Gets the FEN (Forsyth-Edwards Notation) of the current chess position excluding move counters
   getPositionFEN(): string {
     let position = '';
     for (let r = 7; r >= 0; r--) {
@@ -404,6 +413,7 @@ export class AtomicChess {
     return position;
   }
 
+  // Gets the FEN (Forsyth-Edwards Notation) of the current chess position
   getFEN(): string {
     const position = this.getPositionFEN();
     const activeColor = this.activeColor == Color.WHITE ? 'w' : 'b';
@@ -427,15 +437,18 @@ export class AtomicChess {
     return `${position} ${activeColor} ${castlingRights} ${enPassant}${this.halfMoves} ${this.fullMoves}`;
   }
 
+  // Initializes the atomic chess game with the given state
   constructor(state: FEN) {
     this.load(state);
   }
 
+  // Replaces the current game state with the given game state
   load(state: FEN) {
     Object.assign(this, state);
     this.addPositionToHistory();
   }
 
+  // Increments the counter for the current position to be used to check for threefold repetition
   addPositionToHistory() {
     const position = this.getPositionFEN();
     this.history.push(position);
@@ -477,6 +490,7 @@ export class AtomicChess {
     return this.halfMoves >= 50;
   }
 
+  // Promotes a pawn at the given square to the given piece
   promote(square: Square, piece: PromotablePiece) {
     this.board[X88[square]] = piece;
   }
@@ -484,33 +498,37 @@ export class AtomicChess {
   // Switches turn after a move and updates game state accordingly
   switchTurn() {
     this.halfMoves++;
+    // Full moves are counted when black moves
     if (this.activeColor == Color.BLACK) {
       this.fullMoves++;
     }
     this.activeColor = ENEMY_COLOR[this.activeColor];
-    this.enPassantSquare = null;
+    this.enPassantSquare = null; // Prevent en passants multiple moves after a pawn has moved two squares
   }
 
   // Updates the game state according to the flags raised in a move
   updateFlags({ enPassantSquare, flags }: MoveResult) {
     if (!flags) return;
+    // Reset half moves
     if (flags[Flag.PAWN_MOVE] || flags[Flag.CAPTURE]) {
       this.halfMoves = 0;
     }
+    // Update en passant square
     if (flags[Flag.DOUBLE] && enPassantSquare) {
       this.enPassantSquare = enPassantSquare;
     }
+    // Update castling rights
     this.hasCastlingRights[Color.BLACK][MoveType.KINGSIDE_CASTLE] &&= !flags[Flag.DISABLE_BLACK_KINGSIDE_CASTLING];
     this.hasCastlingRights[Color.BLACK][MoveType.QUEENSIDE_CASTLE] &&= !flags[Flag.DISABLE_BLACK_QUEENSIDE_CASTLING];
     this.hasCastlingRights[Color.WHITE][MoveType.KINGSIDE_CASTLE] &&= !flags[Flag.DISABLE_WHITE_KINGSIDE_CASTLING];
     this.hasCastlingRights[Color.WHITE][MoveType.QUEENSIDE_CASTLE] &&= !flags[Flag.DISABLE_WHITE_QUEENSIDE_CASTLING];
   }
 
-  // Attempts to make a move on the board, updates the game state accordingly, and returns information about successful moves or null if it is not a valid move
+  // Validates a move, makes the move if it is legal, and returns the result of the move
   tryMove({ from, to }: { from: Square, to: Square }): MoveResult | null {
     const legalMove = this.getLegalMovesFrom(from).find(move => move.to == X88[to]);
     if (!legalMove) return null;
-    this.switchTurn();
+    this.switchTurn(); // Placed before updating flags to ensure the en passant square is not cleared after it is updated
     this.updateFlags(legalMove);
     this.board = legalMove.result;
     this.addPositionToHistory();
@@ -538,21 +556,23 @@ export class AtomicChess {
     ].filter(({ result, color }) => result.indexOf(KINGS[color]) > -1 && !isCheck(result, color));
   }
 
-  // pawns move in a weird way and are handled in a different function
-  // other pieces move in one direction
+  // Finds the piece at the given position and checks for valid moves by moving in a ray for each of the valid directions
+  // until the piece can no longer move, the piece is no longer on the board, or the piece is blocked. Then tries to capture
+  // the piece at the square
+  // pawns move in a unique manner
   // kings and knights move once
-  // all other pieces move in a ray until they are blocked or leave the board
+  // other pieces move in ray
   // kings can't capture
   getStandardMovesFrom(from: number): MoveResult[] {
     const piece = this.board[from];
     if (!piece || PIECE_TO_COLOR[piece] != this.activeColor) return [];
-    if (PIECE_TO_TYPE[piece] == PieceType.PAWN) return []; // pawns are built different
+    if (PIECE_TO_TYPE[piece] == PieceType.PAWN) return []; // pawns moves are handled in a different function
     const dirs = PIECE_MOVE_PATTERNS[piece];
     const moves: MoveResult[] = [];
     for (const dir of dirs) {
       // try move in a ray
       let to = from + dir;
-      while (!(to & 0x88 || this.board[to])) {
+      while (isValidSquare(to) && !this.board[to]) {
         moves.push(getMoveResult({ board: this.board, from, to, piece, color: this.activeColor, type: MoveType.STANDARD_MOVE }));
         if (MOVES_ONCE[piece]) break;
         to += dir;
@@ -614,6 +634,7 @@ function getMoveResult({ board, from, to, color, piece, type, flags, enPassantSq
   let explode = false;
   flags ??= {};
   switch (type) {
+    // Simulate castles
     case MoveType.KINGSIDE_CASTLE:
     case MoveType.QUEENSIDE_CASTLE:
       const { kingMove, rookMove } = CASTLE_MOVES[color][type];
@@ -624,6 +645,7 @@ function getMoveResult({ board, from, to, color, piece, type, flags, enPassantSq
       flags[Flag.DISABLE_WHITE_KINGSIDE_CASTLING] = color == Color.WHITE;
       flags[Flag.DISABLE_WHITE_QUEENSIDE_CASTLING] = color == Color.WHITE;
       return { from, to, color, piece, type, flags, result };
+    // Simulate standard moves
     case MoveType.STANDARD_MOVE:
       movePiece(result, { from, to });
       flags[Flag.PAWN_MOVE] = PIECE_TO_TYPE[piece] == PieceType.PAWN;
@@ -633,6 +655,7 @@ function getMoveResult({ board, from, to, color, piece, type, flags, enPassantSq
       flags[Flag.DISABLE_WHITE_KINGSIDE_CASTLING] = piece == 'K' || (piece == 'R' && from == CASTLE_MOVES[Color.WHITE][MoveType.KINGSIDE_CASTLE].rookMove.from);
       flags[Flag.DISABLE_WHITE_QUEENSIDE_CASTLING] = piece == 'K' || (piece == 'R' && from == CASTLE_MOVES[Color.WHITE][MoveType.QUEENSIDE_CASTLE].rookMove.from);
       return { from, to, color, piece, type, flags, enPassantSquare, result };
+    // Simulate captures and en passants
     case MoveType.CAPTURE:
     case MoveType.EN_PASSANT:
       const explodeTarget = type == MoveType.CAPTURE ? to : to - PIECE_MOVE_PATTERNS[piece][0];
@@ -649,5 +672,6 @@ function getMoveResult({ board, from, to, color, piece, type, flags, enPassantSq
     default:
       break;
   }
-  return { from, to, color, piece, type: type, flags, enPassantSquare, result, captures, explode };
+  // unreachable code added to satisfy the ts compiler
+  return { from, to, color, piece, type, flags, enPassantSquare, result, captures, explode };
 }
