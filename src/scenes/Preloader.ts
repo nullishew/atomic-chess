@@ -28,8 +28,10 @@ export class Preloader extends Scene {
     this.load.setPath('assets');
     this.load.audio(ASSETS.EXPLOSION.key, ASSETS.EXPLOSION.src);
     this.load.image(ASSETS.CHESSBOARD_TILES.key, ASSETS.CHESSBOARD_TILES.src);
-    this.load.image(ASSETS.PARTICLE.key, ASSETS.PARTICLE.src);
+    this.load.image(ASSETS.CHESS_CAPTURE_INDICATOR.key, ASSETS.CHESS_CAPTURE_INDICATOR.src);
+    this.load.image(ASSETS.CHESS_MOVE_INDICATOR.key, ASSETS.CHESS_MOVE_INDICATOR.src);
     this.load.image(ASSETS.RETRY.key, ASSETS.RETRY.src);
+    this.load.image(ASSETS.PARTICLE.key, ASSETS.PARTICLE.src);
     this.load.spritesheet(ASSETS.CHESS_PIECES.key, ASSETS.CHESS_PIECES.src, { frameWidth: chessTileSize, frameHeight: chessTileSize });
   }
 

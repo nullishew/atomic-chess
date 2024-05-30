@@ -5,8 +5,8 @@ import { Game, Types } from "phaser";
 // Configure game window properties
 const config: Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: 192,
-  height: 192,
+  width: 160,
+  height: 160,
   parent: 'game-container',
   backgroundColor: '#000000',
   scale: {

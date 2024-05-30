@@ -1,10 +1,7 @@
-import { Piece } from "./atomic-chess/atomicChess";
+import { Piece } from "./atomic-chess/AtomicChess";
 
 // Define structure of asset data to keep track of asset keys and src files
-interface Asset {
-  key: string,
-  src: string,
-};
+interface Asset { key: string, src: string };
 
 // Map asset names to asset data
 export const ASSETS: Record<string, Asset> = {
@@ -12,10 +9,12 @@ export const ASSETS: Record<string, Asset> = {
   CHESSBOARD_TILES: { key: 'chessboard-tiles', src: 'pixel-chess-tiles.png' },
   PARTICLE: { key: 'particle', src: 'particle.png' },
   EXPLOSION: { key: 'explosion', src: 'explosion.wav' },
-  RETRY: {key: 'retry', src: 'retry.png'},
+  RETRY: { key: 'retry', src: 'retry.png' },
+  CHESS_CAPTURE_INDICATOR: { key: 'capture', src: 'chess-capture-indicator.png' },
+  CHESS_MOVE_INDICATOR: { key: 'move', src: 'chess-move-indicator.png' },
 };
 
-// Map pieces to their corresponding frame in the chess piece spritesheet
+// Map pieces to their corresponding texture frame in the chess piece spritesheet
 export const PIECE_TO_TEXTURE_FRAME: Record<Piece, number> = {
   k: 1,
   q: 3,
