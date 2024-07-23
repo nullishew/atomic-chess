@@ -42,20 +42,23 @@ export class Game extends Scene {
       }
     });
 
-    // Pointer input that updates when the pointer moves
-    this.input.on('pointermove', () => {
-      // Keeps track of the square the pointer is currently hovering over
+    // Updates the position of the pointer square to match the location of the pointer
+    const updatePointerSquare = () => {
       const { x, y } = this.input.activePointer.positionToCamera(this.cameras.main) as Phaser.Math.Vector2;
       this.pointerSquare = this.chessGUI.worldXYToSquare(x, y);
+    }
 
-      // Highlights the square the pointer is currently hovering over
+    // Pointer input that Highlights the suqare the pointer is currently hovering over when the pointer moves
+    this.input.on('pointermove', () => {
       if (this.isGameOver || this.isPromoting) return; // Prevent ui updates when promoting a pawn or the game is over
+      updatePointerSquare();
       this.chessGUI.highlightSquare(this.chessGUI.pointerTileOutline, this.pointerSquare);
     });
 
     // Pointer input that updates when the screen is clicked
     this.input.on('pointerdown', () => {
       if (this.isGameOver || this.isPromoting) return;  // Prevent ui updates when promoting a pawn or the game is over
+      updatePointerSquare();
       const { pointerSquare } = this;
       // Deselect square if a square is not being clicked
       if (!pointerSquare) {
@@ -74,9 +77,6 @@ export class Game extends Scene {
       this.tryMove({ from: this.selectedSquare, to: pointerSquare });
       this.deselectSquare();
     });
-
-    // const space = this?.input?.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    // space?.on('down', () => console.log(this.chessLogic.getFEN()));
   }
 
   // Attempt to make a move
